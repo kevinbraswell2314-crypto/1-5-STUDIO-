@@ -1235,6 +1235,7 @@
   <div class="toast" id="toast"></div>
 
   <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+  <script src="https://unpkg.com/@zxing/library@0.23.0"></script>
   <script>
     const STORAGE_KEY = '15-studios-modern-cinematic-ui';
     const stageKeys = ['direction', 'lock', 'resolve', 'produce', 'authorize'];
@@ -1770,6 +1771,35 @@
       return null;
     }
 
+    async function decodeQrWithZXingFile(file) {
+      if (!window.ZXing?.BrowserQRCodeReader) return null;
+      const url = URL.createObjectURL(file);
+      const img = new Image();
+      img.decoding = 'async';
+      try {
+        await new Promise((resolve, reject) => {
+          img.onload = resolve;
+          img.onerror = reject;
+          img.src = url;
+        });
+        const reader = new window.ZXing.BrowserQRCodeReader();
+        let result = null;
+        if (typeof reader.decodeFromImageElement === 'function') {
+          result = await reader.decodeFromImageElement(img);
+        } else if (typeof reader.decodeFromImage === 'function') {
+          result = await reader.decodeFromImage(img);
+        } else if (typeof reader.decodeFromImageUrl === 'function') {
+          result = await reader.decodeFromImageUrl(url);
+        }
+        return result?.getText?.() || result?.text || result?.rawValue || null;
+      } catch (err) {
+        console.warn('ZXing QR decode failed', err);
+        return null;
+      } finally {
+        URL.revokeObjectURL(url);
+      }
+    }
+
     async function startQrCamera() {
       if (!navigator.mediaDevices?.getUserMedia) {
         toast('Camera access is not supported in this browser.');
@@ -1839,28 +1869,45 @@
       if (!file) return;
       const detector = await getQrDetector();
       try {
-        const bitmap = await createImageBitmap(file);
         let value = null;
+        let source = 'image';
 
-        // First try the browser-native QR decoder when available.
-        if (detector) {
-          try {
-            const codes = await detector.detect(bitmap);
-            if (codes.length) value = codes[0].rawValue;
-          } catch {}
+        // 1) Browser-native decoder.
+        try {
+          const bitmap = await createImageBitmap(file);
+          if (detector) {
+            try {
+              const codes = await detector.detect(bitmap);
+              if (codes.length) value = codes[0].rawValue;
+            } catch {}
+          }
+
+          // 2) jsQR fallback.
+          if (!value) {
+            value = decodeQrWithJsQR(bitmap);
+            if (value) source = 'image-jsqr';
+          }
+          bitmap.close?.();
+        } catch {}
+
+        // 3) ZXing fallback for very dense / high-version scene-package QR codes.
+        if (!value) {
+          setPill(refs.qrStatusPill, 'Heavy QR decode…', 'waiting');
+          value = await decodeQrWithZXingFile(file);
+          if (value) source = 'image-zxing';
         }
 
-        // Fallback decoder for browsers that reject or struggle with dense QR images.
-        if (!value) value = decodeQrWithJsQR(bitmap);
-        bitmap.close?.();
-
         if (!value) {
-          toast('No QR code could be decoded. Try the original full-size QR image with a white border around it.');
+          const zxingLoaded = !!window.ZXing?.BrowserQRCodeReader;
+          toast(zxingLoaded
+            ? 'QR is valid-looking but this browser still could not decode it. Keep the original PNG and try Chrome/Edge.'
+            : 'Heavy QR decoder did not load. Check internet access, refresh, and try the original PNG again.');
           setPill(refs.qrStatusPill, 'QR decode failed', 'waiting');
           return;
         }
-        inspectQr(value, detector ? 'image' : 'image-fallback');
-      } catch {
+        inspectQr(value, source);
+      } catch (err) {
+        console.error(err);
         toast('Could not read that QR image.');
       }
     }
