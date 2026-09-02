@@ -1610,15 +1610,52 @@
       const raw = normalizeQrValue(rawValue);
       if (!raw) return { raw, ids: [], packageId: null, durationMinutes: null };
 
-      // Supports plain IDs, compact 15SQR manifests, or JSON containing ID strings.
-      const ids = Array.from(new Set(
-        (raw.match(/15S-[A-Z0-9][A-Z0-9_-]*/gi) || []).map(id => id.toUpperCase())
-      ));
-      const packageId = ids.find(id => /^15S-(PKG|PACKAGE)-/i.test(id)) || ids[0] || null;
+      // 1-5 Studios accepts both legacy 15S-* IDs and the compact scene-package
+      // manifest format used by production QRs, e.g.:
+      // 1-5S|QTDC-40S|PACKAGE:QTDC-IMAGINATION-40S|8x5.000s=40.000s|...
+      const collected = [];
+      const addId = (value) => {
+        const v = String(value || '').trim().toUpperCase();
+        if (v && !collected.includes(v)) collected.push(v);
+      };
+
+      // Legacy / explicit 15S identifiers.
+      (raw.match(/15S-[A-Z0-9][A-Z0-9_-]*/gi) || []).forEach(addId);
+
+      // Current 1-5 Studios package manifest header and package identity.
+      const packageMatch = raw.match(/(?:^|[|\n])PACKAGE\s*:\s*([A-Z0-9][A-Z0-9_-]*)/i);
+      if (packageMatch) addId(packageMatch[1]);
+
+      const headerMatch = raw.match(/^1-5S\|([^|\r\n]+)/i);
+      if (headerMatch) addId(headerMatch[1]);
+
+      // Scene references are valid ID tags inside a scene package.
+      (raw.match(/(?:^|[|\n])(S\d{2,4})(?=\||$)/gim) || []).forEach(token => {
+        const m = token.match(/S\d{2,4}/i);
+        if (m) addId(m[0]);
+      });
+
+      // Also accept a single compact 1-5 Studios ID if one is pasted manually.
+      if (!collected.length && /^(?:1-5S|15S)[|:-]/i.test(raw)) {
+        const first = raw.split(/[|\r\n]/)[0];
+        addId(first);
+      }
+
+      const ids = collected;
+      const packageId = packageMatch?.[1]?.toUpperCase()
+        || ids.find(id => /^15S-(PKG|PACKAGE)-/i.test(id))
+        || ids[0]
+        || null;
 
       let durationMinutes = null;
-      const durMatch = raw.match(/(?:DUR|DURATION|MIN|MINUTES)\s*[:=]\s*(\d{1,3})/i);
-      if (durMatch) durationMinutes = Number(durMatch[1]);
+      const durMatch = raw.match(/(?:DUR|DURATION|MIN|MINUTES)\s*[:=]\s*(\d{1,3}(?:\.\d+)?)/i);
+      if (durMatch) {
+        durationMinutes = Number(durMatch[1]);
+      } else {
+        // Compact manifests may declare total time as "8x5.000s=40.000s".
+        const secondsMatch = raw.match(/=\s*(\d+(?:\.\d+)?)s(?:[|\r\n]|$)/i);
+        if (secondsMatch) durationMinutes = Number(secondsMatch[1]) / 60;
+      }
 
       return { raw, ids, packageId, durationMinutes };
     }

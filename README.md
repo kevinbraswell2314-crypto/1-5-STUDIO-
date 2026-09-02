@@ -1,5 +1,5 @@
-# 1-5 Studios — Dense QR Decoder Fix
+# 1-5 Studios QR Manifest Parser Fix
 
-This build keeps the 1-5 Studios scene-package QR workflow and adds a third, stronger QR decoder (ZXing) after the browser-native and jsQR attempts. It is intended for dense/high-version QR images carrying many compact ID tags.
+This build adds support for the current 1-5 Studios compact QR scene-package manifest format, including `1-5S|...`, `PACKAGE:...`, scene IDs such as `S01`, and duration strings such as `8x5.000s=40.000s`.
 
-Replace the existing repository `index.html` with this one.
+Replace the existing `index.html` in the GitHub Pages repository with this `index.html`.
