@@ -795,6 +795,63 @@
       transform: translateY(0);
     }
 
+
+    .qr-panel { margin-bottom: 22px; }
+    .qr-grid {
+      display: grid;
+      grid-template-columns: minmax(320px, 0.9fr) minmax(0, 1.1fr);
+      gap: 18px;
+    }
+    .scanner-frame {
+      position: relative;
+      min-height: 320px;
+      border-radius: 24px;
+      overflow: hidden;
+      border: 1px solid var(--line-strong);
+      background:
+        linear-gradient(135deg, rgba(114,239,255,.08), transparent 35%),
+        rgba(2,7,12,.9);
+      display: grid;
+      place-items: center;
+    }
+    .scanner-frame video {
+      width: 100%; height: 100%; min-height: 320px; object-fit: cover; display: none;
+    }
+    .scanner-frame.live video { display: block; }
+    .scanner-frame.live .scanner-placeholder { display: none; }
+    .scanner-placeholder { padding: 30px; text-align: center; color: var(--muted); max-width: 42ch; }
+    .scanner-reticle {
+      position: absolute; width: min(58%, 250px); aspect-ratio: 1; border: 2px solid rgba(114,239,255,.76);
+      border-radius: 24px; box-shadow: 0 0 0 999px rgba(0,0,0,.18), inset 0 0 30px rgba(114,239,255,.08);
+      pointer-events: none; display: none;
+    }
+    .scanner-frame.live .scanner-reticle { display: block; }
+    .scanner-beam {
+      position:absolute; left: 22%; right:22%; height:2px; top:50%; background: var(--cyan);
+      box-shadow: 0 0 18px var(--cyan); display:none; animation: qrscan 2.1s ease-in-out infinite;
+    }
+    .scanner-frame.live .scanner-beam { display:block; }
+    @keyframes qrscan { 0%,100%{transform:translateY(-90px);opacity:.35} 50%{transform:translateY(90px);opacity:1} }
+    .qr-controls { display:flex; flex-wrap:wrap; gap:10px; margin-top:14px; }
+    .qr-result {
+      min-height: 100%; padding: 20px; border-radius: 24px; border: 1px solid var(--line);
+      background: rgba(255,255,255,.025);
+    }
+    .qr-value {
+      margin-top: 12px; padding: 14px; border-radius: 14px; background: rgba(0,0,0,.24); border: 1px solid var(--line);
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; overflow-wrap:anywhere; color: var(--cyan-2);
+    }
+    .qr-status-grid { display:grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap:10px; margin-top:14px; }
+    .qr-stat { padding:14px; border-radius:16px; background:rgba(255,255,255,.03); border:1px solid var(--line); }
+    .qr-stat small { color:var(--muted); display:block; margin-bottom:7px; }
+    .manual-scan-row { display:grid; grid-template-columns:1fr auto; gap:10px; margin-top:14px; }
+    .manual-scan-row input { min-width:0; }
+    .file-scan-input { display:none; }
+    .registry-list { margin-top:16px; display:grid; gap:10px; max-height:270px; overflow:auto; }
+    .registry-item { padding:12px 14px; border-radius:14px; background:rgba(255,255,255,.025); border:1px solid var(--line); }
+    .registry-item strong { display:block; overflow-wrap:anywhere; }
+    @media (max-width: 980px) { .qr-grid { grid-template-columns:1fr; } .qr-status-grid{grid-template-columns:1fr;} .manual-scan-row{grid-template-columns:1fr;} }
+
     .section-space { margin-top: 20px; }
 
     @media (max-width: 1320px) {
@@ -839,6 +896,7 @@
       <button class="rail-btn active" data-target="top">TOP</button>
       <button class="rail-btn" data-target="workflow">RUN</button>
       <button class="rail-btn" data-target="output">OUT</button>
+      <button class="rail-btn" data-target="qrscanner">QR</button>
       <button class="rail-btn" data-target="systems">SYS</button>
     </aside>
 
@@ -978,6 +1036,64 @@
             </div>
           </div>
         </section>
+      </section>
+
+
+      <section class="panel qr-panel" id="qrscanner">
+        <div class="panel-header">
+          <div>
+            <div class="panel-title">1-5 Studios / Scene Package QR Scanner</div>
+            <div class="panel-note">This scanner is for 1-5 Studios only. The QR carries compact ID tags — not the video itself. A scan can identify one scene or a multi-scene package representing about 30 minutes of material, then 1-5 Studios resolves those IDs to the stored production material.</div>
+          </div>
+          <span class="status-pill draft" id="qrStatusPill">Scanner idle</span>
+        </div>
+        <div class="panel-body">
+          <div class="qr-grid">
+            <div>
+              <div class="scanner-frame" id="scannerFrame">
+                <video id="qrVideo" playsinline muted></video>
+                <div class="scanner-placeholder" id="scannerPlaceholder">
+                  <strong style="display:block;color:var(--text);font-size:1.08rem;margin-bottom:10px;">Scene-package scanner ready</strong>
+                  Point the camera at a 1-5 Studios QR code. The code may contain a package ID alone or a compact manifest of scene, shot, character, prop, audio, animation, and other ID tags.
+                </div>
+                <div class="scanner-reticle" aria-hidden="true"></div>
+                <div class="scanner-beam" aria-hidden="true"></div>
+              </div>
+              <div class="qr-controls">
+                <button class="btn btn-primary" type="button" id="startScannerBtn">▣ Scan scene QR</button>
+                <button class="btn btn-secondary" type="button" id="stopScannerBtn" disabled>Stop camera</button>
+                <label class="btn btn-secondary" for="qrImageInput">Read QR image</label>
+                <input class="file-scan-input" id="qrImageInput" type="file" accept="image/*" capture="environment" />
+              </div>
+              <div class="manual-scan-row">
+                <input id="manualQrInput" placeholder="Paste package ID or ID-tag manifest" autocomplete="off" />
+                <button class="btn btn-secondary" type="button" id="manualScanBtn">Read IDs</button>
+              </div>
+            </div>
+            <div class="qr-result">
+              <div class="eyebrow">Package result</div>
+              <div class="panel-title" id="qrResultTitle">No package scanned</div>
+              <div class="qr-value" id="qrRawValue">Waiting for a 1-5 Studios QR…</div>
+              <div class="qr-status-grid">
+                <div class="qr-stat"><small>Package state</small><strong id="qrIdentityState">Unknown</strong></div>
+                <div class="qr-stat"><small>Resolution action</small><strong id="qrGateAction">Waiting</strong></div>
+                <div class="qr-stat"><small>Package / lead ID</small><strong class="mono" id="qrSystemId">—</strong></div>
+                <div class="qr-stat"><small>ID tags found</small><strong id="qrRegistryCount">0</strong></div>
+              </div>
+              <div class="button-row section-space">
+                <button class="btn btn-primary" type="button" id="registerQrBtn" disabled>Load scene package</button>
+                <button class="btn btn-secondary" type="button" id="clearQrBtn">Clear result</button>
+              </div>
+              <div class="tag-row section-space">
+                <span class="tag mono">1-5 STUDIOS ONLY</span>
+                <span class="tag mono">QR = ID TAGS ONLY</span>
+                <span class="tag mono">≈ 30 MIN PACKAGE</span>
+                <span class="tag mono">NO DUPLICATE ID</span>
+              </div>
+              <div class="registry-list" id="qrRegistryList"></div>
+            </div>
+          </div>
+        </div>
       </section>
 
       <section class="grid-lower" id="workflow">
@@ -1171,6 +1287,8 @@
         selectedCandidate: null,
         registrationDone: false,
         blocker: null,
+        qrRegistry: [],
+        lastScan: null,
         queue: [],
         logs: [
           { time: stamp(), title: 'Interface ready', detail: 'Main page is focused. The background system is idle until a roll begins.' }
@@ -1245,6 +1363,23 @@
       rerollBtn: document.getElementById('rerollBtn'),
       resetBtn: document.getElementById('resetBtn'),
       injectBlockerBtn: document.getElementById('injectBlockerBtn'),
+      qrStatusPill: document.getElementById('qrStatusPill'),
+      scannerFrame: document.getElementById('scannerFrame'),
+      qrVideo: document.getElementById('qrVideo'),
+      startScannerBtn: document.getElementById('startScannerBtn'),
+      stopScannerBtn: document.getElementById('stopScannerBtn'),
+      qrImageInput: document.getElementById('qrImageInput'),
+      manualQrInput: document.getElementById('manualQrInput'),
+      manualScanBtn: document.getElementById('manualScanBtn'),
+      qrResultTitle: document.getElementById('qrResultTitle'),
+      qrRawValue: document.getElementById('qrRawValue'),
+      qrIdentityState: document.getElementById('qrIdentityState'),
+      qrGateAction: document.getElementById('qrGateAction'),
+      qrSystemId: document.getElementById('qrSystemId'),
+      qrRegistryCount: document.getElementById('qrRegistryCount'),
+      registerQrBtn: document.getElementById('registerQrBtn'),
+      clearQrBtn: document.getElementById('clearQrBtn'),
+      qrRegistryList: document.getElementById('qrRegistryList'),
       railBtns: [...document.querySelectorAll('.rail-btn')],
       drawerToggles: [...document.querySelectorAll('.drawer-toggle')]
     };
@@ -1462,6 +1597,226 @@
       return String(str).replace(/_/g, ' ').replace(/\b\w/g, s => s.toUpperCase());
     }
 
+    let qrStream = null;
+    let qrLoopToken = 0;
+
+    function normalizeQrValue(value) {
+      return String(value || '').trim();
+    }
+
+    function parseScenePackageQr(rawValue) {
+      const raw = normalizeQrValue(rawValue);
+      if (!raw) return { raw, ids: [], packageId: null, durationMinutes: null };
+
+      // Supports plain IDs, compact 15SQR manifests, or JSON containing ID strings.
+      const ids = Array.from(new Set(
+        (raw.match(/15S-[A-Z0-9][A-Z0-9_-]*/gi) || []).map(id => id.toUpperCase())
+      ));
+      const packageId = ids.find(id => /^15S-(PKG|PACKAGE)-/i.test(id)) || ids[0] || null;
+
+      let durationMinutes = null;
+      const durMatch = raw.match(/(?:DUR|DURATION|MIN|MINUTES)\s*[:=]\s*(\d{1,3})/i);
+      if (durMatch) durationMinutes = Number(durMatch[1]);
+
+      return { raw, ids, packageId, durationMinutes };
+    }
+
+    function inspectQr(rawValue, source = 'scanner') {
+      const parsed = parseScenePackageQr(rawValue);
+      if (!parsed.raw) return;
+
+      const registry = state.qrRegistry || (state.qrRegistry = []);
+      const existing = parsed.packageId
+        ? registry.find(item => item.packageId === parsed.packageId)
+        : null;
+
+      state.lastScan = {
+        ...parsed,
+        source,
+        time: new Date().toISOString()
+      };
+
+      refs.qrRawValue.textContent = parsed.raw;
+      refs.qrRegistryCount.textContent = String(parsed.ids.length);
+
+      if (!parsed.ids.length) {
+        refs.qrResultTitle.textContent = 'No 1-5 Studios ID tags found';
+        refs.qrIdentityState.textContent = 'Unreadable package manifest';
+        refs.qrGateAction.textContent = 'Hold — QR must contain one or more 15S ID tags';
+        refs.qrSystemId.textContent = '—';
+        refs.registerQrBtn.disabled = true;
+        setPill(refs.qrStatusPill, 'Invalid package QR', 'blocked');
+        return;
+      }
+
+      refs.qrSystemId.textContent = parsed.packageId || parsed.ids[0];
+
+      if (existing) {
+        refs.qrResultTitle.textContent = 'Known scene package recognized';
+        refs.qrIdentityState.textContent = `${existing.ids.length} stored ID tag${existing.ids.length === 1 ? '' : 's'}`;
+        refs.qrGateAction.textContent = 'Reuse existing package — no duplicate package identity';
+        refs.registerQrBtn.disabled = false;
+        refs.registerQrBtn.textContent = 'Load existing package';
+        setPill(refs.qrStatusPill, 'Package recognized', 'approved');
+        addLog('Scene-package QR recognized', `${existing.packageId} matched the local package registry.`);
+      } else {
+        refs.qrResultTitle.textContent = parsed.ids.length === 1 ? 'Scene/package ID recognized' : 'Scene-package manifest recognized';
+        refs.qrIdentityState.textContent = `${parsed.ids.length} unique ID tag${parsed.ids.length === 1 ? '' : 's'} found`;
+        refs.qrGateAction.textContent = parsed.durationMinutes
+          ? `Ready to resolve IDs · manifest says ${parsed.durationMinutes} min`
+          : 'Ready to resolve IDs into stored 1-5 Studios material';
+        refs.registerQrBtn.disabled = false;
+        refs.registerQrBtn.textContent = 'Load scene package';
+        setPill(refs.qrStatusPill, 'IDs ready', 'active-state');
+      }
+
+      renderQrRegistry();
+      saveState();
+    }
+
+    function registerLastScan() {
+      const scan = state.lastScan;
+      if (!scan || !scan.raw || !scan.ids?.length) return;
+      const registry = state.qrRegistry || (state.qrRegistry = []);
+      const packageId = scan.packageId || scan.ids[0];
+      const existing = registry.find(item => item.packageId === packageId);
+
+      if (!existing) {
+        registry.unshift({
+          packageId,
+          ids: [...scan.ids],
+          durationMinutes: scan.durationMinutes || 30,
+          firstSeen: new Date().toISOString()
+        });
+        addLog('Scene package loaded', `${packageId} resolved with ${scan.ids.length} unique ID tag(s). QR carries references only; production material remains stored in 1-5 Studios.`);
+      } else {
+        addLog('Existing scene package reused', `${packageId} was already registered, so no duplicate package identity was created.`);
+      }
+
+      refs.qrResultTitle.textContent = existing ? 'Existing package loaded' : 'Scene package loaded';
+      refs.qrIdentityState.textContent = `${scan.ids.length} unique ID tag${scan.ids.length === 1 ? '' : 's'}`;
+      refs.qrGateAction.textContent = 'IDs resolved / package ready for 1-5 Studios workflow';
+      refs.qrSystemId.textContent = packageId;
+      refs.registerQrBtn.disabled = true;
+      refs.registerQrBtn.textContent = 'Package loaded';
+      setPill(refs.qrStatusPill, 'Package ready', 'approved');
+      renderQrRegistry();
+      saveState();
+      toast(`${packageId} loaded into 1-5 Studios.`);
+    }
+
+    function renderQrRegistry() {
+      const registry = state.qrRegistry || [];
+      if (!state.lastScan) refs.qrRegistryCount.textContent = '0';
+      if (!registry.length) {
+        refs.qrRegistryList.innerHTML = '<div class="muted">No scene packages scanned yet.</div>';
+        return;
+      }
+      refs.qrRegistryList.innerHTML = registry.slice(0,6).map(item => `
+        <div class="registry-item">
+          <strong class="mono">${item.packageId}</strong>
+          <div class="muted">${item.ids.length} ID tag${item.ids.length === 1 ? '' : 's'} · ≈ ${item.durationMinutes || 30} min package · first scanned ${new Date(item.firstSeen).toLocaleString()}</div>
+        </div>
+      `).join('');
+    }
+
+    function clearQrResult() {
+      state.lastScan = null;
+      refs.qrResultTitle.textContent = 'No package scanned';
+      refs.qrRawValue.textContent = 'Waiting for a 1-5 Studios QR…';
+      refs.qrIdentityState.textContent = 'Unknown';
+      refs.qrGateAction.textContent = 'Waiting';
+      refs.qrSystemId.textContent = '—';
+      refs.qrRegistryCount.textContent = '0';
+      refs.registerQrBtn.disabled = true;
+      refs.registerQrBtn.textContent = 'Load scene package';
+      setPill(refs.qrStatusPill, 'Scanner idle', 'draft');
+      saveState();
+    }
+
+    async function getQrDetector() {
+      if (!('BarcodeDetector' in window)) return null;
+      try {
+        const formats = await BarcodeDetector.getSupportedFormats();
+        if (!formats.includes('qr_code')) return null;
+        return new BarcodeDetector({ formats: ['qr_code'] });
+      } catch { return null; }
+    }
+
+    async function startQrCamera() {
+      if (!navigator.mediaDevices?.getUserMedia) {
+        toast('Camera access is not supported in this browser.');
+        setPill(refs.qrStatusPill, 'Camera unavailable', 'blocked');
+        return;
+      }
+      const detector = await getQrDetector();
+      if (!detector) {
+        toast('This browser cannot decode QR by camera here. Use a QR image or paste the package ID manifest.');
+        setPill(refs.qrStatusPill, 'Decoder unavailable', 'waiting');
+        return;
+      }
+      try {
+        stopQrCamera();
+        qrStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' } }, audio: false });
+        refs.qrVideo.srcObject = qrStream;
+        await refs.qrVideo.play();
+        refs.scannerFrame.classList.add('live');
+        refs.startScannerBtn.disabled = true;
+        refs.stopScannerBtn.disabled = false;
+        setPill(refs.qrStatusPill, 'Scanning', 'active-state');
+        const token = ++qrLoopToken;
+        const tick = async () => {
+          if (!qrStream || token !== qrLoopToken) return;
+          try {
+            const codes = await detector.detect(refs.qrVideo);
+            if (codes.length) {
+              inspectQr(codes[0].rawValue, 'camera');
+              stopQrCamera();
+              return;
+            }
+          } catch {}
+          requestAnimationFrame(tick);
+        };
+        requestAnimationFrame(tick);
+      } catch (err) {
+        setPill(refs.qrStatusPill, 'Camera permission needed', 'blocked');
+        toast('Camera could not start. Check browser permission or use a QR image/manual package manifest.');
+      }
+    }
+
+    function stopQrCamera() {
+      qrLoopToken++;
+      if (qrStream) qrStream.getTracks().forEach(track => track.stop());
+      qrStream = null;
+      refs.qrVideo.srcObject = null;
+      refs.scannerFrame.classList.remove('live');
+      refs.startScannerBtn.disabled = false;
+      refs.stopScannerBtn.disabled = true;
+      if (!state.lastScan) setPill(refs.qrStatusPill, 'Scanner idle', 'draft');
+    }
+
+    async function scanQrImage(file) {
+      if (!file) return;
+      const detector = await getQrDetector();
+      if (!detector) {
+        toast('QR image decoding is not supported in this browser. Paste the package ID manifest instead.');
+        return;
+      }
+      try {
+        const bitmap = await createImageBitmap(file);
+        const codes = await detector.detect(bitmap);
+        bitmap.close?.();
+        if (!codes.length) {
+          toast('No QR code found in that image.');
+          setPill(refs.qrStatusPill, 'No QR found', 'waiting');
+          return;
+        }
+        inspectQr(codes[0].rawValue, 'image');
+      } catch {
+        toast('Could not read that image.');
+      }
+    }
+
     function renderAll() {
       refs.era.value = state.scene.era;
       refs.season.value = state.scene.season;
@@ -1474,6 +1829,7 @@
       renderEvents();
       renderQueue();
       renderBackgroundDetails();
+      renderQrRegistry();
       renderModal();
       saveState();
     }
@@ -1628,6 +1984,7 @@
     }
 
     function resetAll() {
+      stopQrCamera();
       clearTimers();
       localStorage.removeItem(STORAGE_KEY);
       state = defaultState();
@@ -1662,6 +2019,18 @@
       addLog('Decision deferred', 'Run remains paused until an approved match is selected.');
       renderAll();
     });
+
+
+    refs.startScannerBtn.addEventListener('click', startQrCamera);
+    refs.stopScannerBtn.addEventListener('click', stopQrCamera);
+    refs.manualScanBtn.addEventListener('click', () => inspectQr(refs.manualQrInput.value, 'manual'));
+    refs.manualQrInput.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter') { event.preventDefault(); inspectQr(refs.manualQrInput.value, 'manual'); }
+    });
+    refs.qrImageInput.addEventListener('change', (event) => scanQrImage(event.target.files?.[0]));
+    refs.registerQrBtn.addEventListener('click', registerLastScan);
+    refs.clearQrBtn.addEventListener('click', clearQrResult);
+    window.addEventListener('pagehide', stopQrCamera);
 
     refs.drawerToggles.forEach(btn => {
       btn.addEventListener('click', () => btn.parentElement.classList.toggle('open'));
