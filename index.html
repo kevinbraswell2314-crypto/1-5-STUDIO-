@@ -1234,6 +1234,7 @@
 
   <div class="toast" id="toast"></div>
 
+  <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
   <script>
     const STORAGE_KEY = '15-studios-modern-cinematic-ui';
     const stageKeys = ['direction', 'lock', 'resolve', 'produce', 'authorize'];
@@ -1743,6 +1744,32 @@
       } catch { return null; }
     }
 
+    function decodeQrWithJsQR(source) {
+      if (typeof window.jsQR !== 'function') return null;
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d', { willReadFrequently: true });
+      if (!ctx) return null;
+      const sw = source.videoWidth || source.width || source.naturalWidth || 0;
+      const sh = source.videoHeight || source.height || source.naturalHeight || 0;
+      if (!sw || !sh) return null;
+
+      // Dense scene-package QR codes benefit from a large decode surface.
+      const targets = [Math.min(1800, Math.max(sw, sh)), 1400, 1000];
+      for (const maxSide of targets) {
+        const scale = Math.min(1, maxSide / Math.max(sw, sh));
+        canvas.width = Math.max(1, Math.round(sw * scale));
+        canvas.height = Math.max(1, Math.round(sh * scale));
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(source, 0, 0, canvas.width, canvas.height);
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const result = window.jsQR(imageData.data, canvas.width, canvas.height, {
+          inversionAttempts: 'attemptBoth'
+        });
+        if (result?.data) return result.data;
+      }
+      return null;
+    }
+
     async function startQrCamera() {
       if (!navigator.mediaDevices?.getUserMedia) {
         toast('Camera access is not supported in this browser.');
@@ -1750,14 +1777,15 @@
         return;
       }
       const detector = await getQrDetector();
-      if (!detector) {
-        toast('This browser cannot decode QR by camera here. Use a QR image or paste the package ID manifest.');
+      const hasFallback = typeof window.jsQR === 'function';
+      if (!detector && !hasFallback) {
+        toast('QR decoder could not load. Refresh the page and try again.');
         setPill(refs.qrStatusPill, 'Decoder unavailable', 'waiting');
         return;
       }
       try {
         stopQrCamera();
-        qrStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' } }, audio: false });
+        qrStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' }, width: { ideal: 1920 }, height: { ideal: 1080 } }, audio: false });
         refs.qrVideo.srcObject = qrStream;
         await refs.qrVideo.play();
         refs.scannerFrame.classList.add('live');
@@ -1765,14 +1793,26 @@
         refs.stopScannerBtn.disabled = false;
         setPill(refs.qrStatusPill, 'Scanning', 'active-state');
         const token = ++qrLoopToken;
+        let frameCount = 0;
         const tick = async () => {
           if (!qrStream || token !== qrLoopToken) return;
           try {
-            const codes = await detector.detect(refs.qrVideo);
-            if (codes.length) {
-              inspectQr(codes[0].rawValue, 'camera');
-              stopQrCamera();
-              return;
+            if (detector) {
+              const codes = await detector.detect(refs.qrVideo);
+              if (codes.length) {
+                inspectQr(codes[0].rawValue, 'camera');
+                stopQrCamera();
+                return;
+              }
+            }
+            // Run the stronger fallback every few frames so camera scanning stays smooth.
+            if (hasFallback && (++frameCount % 6 === 0)) {
+              const value = decodeQrWithJsQR(refs.qrVideo);
+              if (value) {
+                inspectQr(value, 'camera-fallback');
+                stopQrCamera();
+                return;
+              }
             }
           } catch {}
           requestAnimationFrame(tick);
@@ -1798,22 +1838,30 @@
     async function scanQrImage(file) {
       if (!file) return;
       const detector = await getQrDetector();
-      if (!detector) {
-        toast('QR image decoding is not supported in this browser. Paste the package ID manifest instead.');
-        return;
-      }
       try {
         const bitmap = await createImageBitmap(file);
-        const codes = await detector.detect(bitmap);
+        let value = null;
+
+        // First try the browser-native QR decoder when available.
+        if (detector) {
+          try {
+            const codes = await detector.detect(bitmap);
+            if (codes.length) value = codes[0].rawValue;
+          } catch {}
+        }
+
+        // Fallback decoder for browsers that reject or struggle with dense QR images.
+        if (!value) value = decodeQrWithJsQR(bitmap);
         bitmap.close?.();
-        if (!codes.length) {
-          toast('No QR code found in that image.');
-          setPill(refs.qrStatusPill, 'No QR found', 'waiting');
+
+        if (!value) {
+          toast('No QR code could be decoded. Try the original full-size QR image with a white border around it.');
+          setPill(refs.qrStatusPill, 'QR decode failed', 'waiting');
           return;
         }
-        inspectQr(codes[0].rawValue, 'image');
+        inspectQr(value, detector ? 'image' : 'image-fallback');
       } catch {
-        toast('Could not read that image.');
+        toast('Could not read that QR image.');
       }
     }
 
