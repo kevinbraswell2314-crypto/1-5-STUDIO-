@@ -1607,57 +1607,72 @@
     }
 
     function parseScenePackageQr(rawValue) {
-      const raw = normalizeQrValue(rawValue);
-      if (!raw) return { raw, ids: [], packageId: null, durationMinutes: null };
+      const raw = normalizeQrValue(rawValue).replace(/\r\n?/g, '\n');
+      if (!raw) return { raw, ids: [], packageId: null, durationMinutes: null, valid1to5: false, sceneIds: [] };
 
-      // 1-5 Studios accepts both legacy 15S-* IDs and the compact scene-package
-      // manifest format used by production QRs, e.g.:
-      // 1-5S|QTDC-40S|PACKAGE:QTDC-IMAGINATION-40S|8x5.000s=40.000s|...
+      // QR-FIX-4: Accept the real 1-5 Studios compact production manifest.
+      // Example begins: 1-5S|QTDC-40S|PACKAGE:QTDC-IMAGINATION-40S|8x5.000s=40.000s|...
+      const valid1to5 = /^\s*1-5S(?:\||\n|$)/i.test(raw) || /(?:^|[|\n])PACKAGE\s*:/i.test(raw);
       const collected = [];
       const addId = (value) => {
         const v = String(value || '').trim().toUpperCase();
         if (v && !collected.includes(v)) collected.push(v);
       };
 
-      // Legacy / explicit 15S identifiers.
+      // Package identity is authoritative for compact 1-5S QR manifests.
+      const packageMatch = raw.match(/(?:^|[|\n])PACKAGE\s*:\s*([^|\n]+)/i);
+      const packageId = packageMatch ? packageMatch[1].trim().toUpperCase() : null;
+      if (packageId) addId(packageId);
+
+      // Legacy explicit 15S identifiers remain supported.
       (raw.match(/15S-[A-Z0-9][A-Z0-9_-]*/gi) || []).forEach(addId);
 
-      // Current 1-5 Studios package manifest header and package identity.
-      const packageMatch = raw.match(/(?:^|[|\n])PACKAGE\s*:\s*([A-Z0-9][A-Z0-9_-]*)/i);
-      if (packageMatch) addId(packageMatch[1]);
+      // Scene rows can be on new lines and each row continues with | fields.
+      const sceneIds = [];
+      const sceneRe = /(?:^|\n)\s*(S\d{2,4})(?=\||\s|$)/gim;
+      let sceneMatch;
+      while ((sceneMatch = sceneRe.exec(raw)) !== null) {
+        const id = sceneMatch[1].toUpperCase();
+        if (!sceneIds.includes(id)) sceneIds.push(id);
+        addId(id);
+      }
 
-      const headerMatch = raw.match(/^1-5S\|([^|\r\n]+)/i);
-      if (headerMatch) addId(headerMatch[1]);
-
-      // Scene references are valid ID tags inside a scene package.
-      (raw.match(/(?:^|[|\n])(S\d{2,4})(?=\||$)/gim) || []).forEach(token => {
+      // Also recognize scene IDs embedded as pipe-delimited tokens.
+      (raw.match(/(?:^|\|)(S\d{2,4})(?=\||\n|$)/gim) || []).forEach(token => {
         const m = token.match(/S\d{2,4}/i);
-        if (m) addId(m[0]);
+        if (m) {
+          const id = m[0].toUpperCase();
+          if (!sceneIds.includes(id)) sceneIds.push(id);
+          addId(id);
+        }
       });
 
-      // Also accept a single compact 1-5 Studios ID if one is pasted manually.
-      if (!collected.length && /^(?:1-5S|15S)[|:-]/i.test(raw)) {
-        const first = raw.split(/[|\r\n]/)[0];
-        addId(first);
-      }
-
-      const ids = collected;
-      const packageId = packageMatch?.[1]?.toUpperCase()
-        || ids.find(id => /^15S-(PKG|PACKAGE)-/i.test(id))
-        || ids[0]
-        || null;
+      // Keep the compact manifest header's project/run identity as a reference.
+      const headerMatch = raw.match(/^\s*1-5S\|([^|\n]+)/i);
+      if (headerMatch) addId(headerMatch[1]);
 
       let durationMinutes = null;
-      const durMatch = raw.match(/(?:DUR|DURATION|MIN|MINUTES)\s*[:=]\s*(\d{1,3}(?:\.\d+)?)/i);
-      if (durMatch) {
-        durationMinutes = Number(durMatch[1]);
+      const explicitMinutes = raw.match(/(?:DUR|DURATION|MIN|MINUTES)\s*[:=]\s*(\d{1,3}(?:\.\d+)?)/i);
+      if (explicitMinutes) {
+        durationMinutes = Number(explicitMinutes[1]);
       } else {
-        // Compact manifests may declare total time as "8x5.000s=40.000s".
-        const secondsMatch = raw.match(/=\s*(\d+(?:\.\d+)?)s(?:[|\r\n]|$)/i);
-        if (secondsMatch) durationMinutes = Number(secondsMatch[1]) / 60;
+        const compactSeconds = raw.match(/(?:^|\|)\s*\d+\s*x\s*\d+(?:\.\d+)?s\s*=\s*(\d+(?:\.\d+)?)s(?=\||\n|$)/i);
+        if (compactSeconds) durationMinutes = Number(compactSeconds[1]) / 60;
       }
 
-      return { raw, ids, packageId, durationMinutes };
+      // A decoded QR that declares itself as a 1-5S manifest is valid even if it
+      // contains only a package identity and no Sxx rows. This prevents the old
+      // false "must contain 15S ID tags" rejection.
+      if (valid1to5 && !collected.length) addId(packageId || '1-5S-MANIFEST');
+
+      return {
+        raw,
+        ids: collected,
+        packageId: packageId || collected[0] || null,
+        durationMinutes,
+        valid1to5,
+        sceneIds
+      };
     }
 
     function inspectQr(rawValue, source = 'scanner') {
@@ -1678,10 +1693,10 @@
       refs.qrRawValue.textContent = parsed.raw;
       refs.qrRegistryCount.textContent = String(parsed.ids.length);
 
-      if (!parsed.ids.length) {
-        refs.qrResultTitle.textContent = 'No 1-5 Studios ID tags found';
-        refs.qrIdentityState.textContent = 'Unreadable package manifest';
-        refs.qrGateAction.textContent = 'Hold — QR must contain one or more 15S ID tags';
+      if (!parsed.valid1to5 && !parsed.ids.length) {
+        refs.qrResultTitle.textContent = 'QR decoded, but it is not a 1-5 Studios package';
+        refs.qrIdentityState.textContent = 'Unrecognized package format';
+        refs.qrGateAction.textContent = 'Hold — expected a 1-5S package manifest';
         refs.qrSystemId.textContent = '—';
         refs.registerQrBtn.disabled = true;
         setPill(refs.qrStatusPill, 'Invalid package QR', 'blocked');
@@ -1699,8 +1714,8 @@
         setPill(refs.qrStatusPill, 'Package recognized', 'approved');
         addLog('Scene-package QR recognized', `${existing.packageId} matched the local package registry.`);
       } else {
-        refs.qrResultTitle.textContent = parsed.ids.length === 1 ? 'Scene/package ID recognized' : 'Scene-package manifest recognized';
-        refs.qrIdentityState.textContent = `${parsed.ids.length} unique ID tag${parsed.ids.length === 1 ? '' : 's'} found`;
+        refs.qrResultTitle.textContent = parsed.valid1to5 ? '1-5 Studios scene-package manifest recognized' : (parsed.ids.length === 1 ? 'Scene/package ID recognized' : 'Scene-package manifest recognized');
+        refs.qrIdentityState.textContent = `${parsed.ids.length} unique ID reference${parsed.ids.length === 1 ? '' : 's'} found${parsed.sceneIds?.length ? ` · ${parsed.sceneIds.length} scene${parsed.sceneIds.length === 1 ? '' : 's'}` : ''} · parser QR-FIX-4`;
         refs.qrGateAction.textContent = parsed.durationMinutes
           ? `Ready to resolve IDs · manifest says ${parsed.durationMinutes} min`
           : 'Ready to resolve IDs into stored 1-5 Studios material';
