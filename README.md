@@ -20,3 +20,13 @@ This deployment is the browser/UI bridge for Core v1. It must not fabricate back
 The included SQL file is the starter authoritative backend schema for the next implementation phase.
 
 Build marker: CORE-V1-SAFETY-NET-7
+
+
+## QR Fix 8
+- Fixes legacy/stale registry rows that could display `undefined`.
+- Never claims Librarian checksum verification unless an authoritative manifest record actually passed the six gates.
+- Descriptive QTDC QR packages can now be loaded in WORKING / PREVIEW Safety-Net mode.
+- Working package entries explicitly show 0 approved Permanent-ID references and final release blocked.
+- Uses a new browser storage key to prevent stale state from the old deployment from contaminating the corrected QR registry.
+
+Build marker: CORE-V1-SAFETY-NET-QR-FIX-8

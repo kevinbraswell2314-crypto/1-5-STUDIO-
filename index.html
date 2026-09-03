@@ -1078,7 +1078,7 @@
                 <div class="qr-stat"><small>Package state</small><strong id="qrIdentityState">Unknown</strong></div>
                 <div class="qr-stat"><small>Resolution action</small><strong id="qrGateAction">Waiting</strong></div>
                 <div class="qr-stat"><small>Package / lead ID</small><strong class="mono" id="qrSystemId">—</strong></div>
-                <div class="qr-stat"><small>Readiness gates passed</small><strong id="qrRegistryCount">0</strong></div>
+                <div class="qr-stat"><small>Authoritative readiness gates passed</small><strong id="qrRegistryCount">0</strong></div>
               </div>
               <div class="button-row section-space">
                 <button class="btn btn-primary" type="button" id="registerQrBtn" disabled>Load scene package</button>
@@ -1263,7 +1263,7 @@
   <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
   <script src="https://unpkg.com/@zxing/library@0.23.0"></script>
   <script>
-    const STORAGE_KEY = '15-studios-modern-cinematic-ui';
+    const STORAGE_KEY = '15-studios-core-v1-safety-net-qr-fix';
     const stageKeys = ['direction', 'lock', 'resolve', 'produce', 'authorize'];
     const stageLabels = [
       { title: 'Direction set', note: 'Creative intent captured' },
@@ -1651,6 +1651,7 @@
         checksum: null,
         compact: false,
         legacyDescriptive: false,
+        descriptivePackageId: null,
         parseError: null
       };
       if (!raw) return result;
@@ -1680,7 +1681,9 @@
 
       if (/^\s*1-5S(?:\||\n|$)/i.test(raw) || /(?:^|[|\n])PACKAGE\s*:/i.test(raw) || /\bS0?1\|/i.test(raw)) {
         result.legacyDescriptive = true;
-        result.parseError = 'Descriptive scene manifest detected. Production QR must contain only MK1 authority + registered manifest ID + checksum.';
+        const pkg = raw.match(/(?:^|[|\n])\s*PACKAGE\s*:\s*([^|\n]+)/i);
+        result.descriptivePackageId = pkg ? pkg[1].trim() : 'QTDC-WORKING-PACKAGE';
+        result.parseError = null;
         return result;
       }
 
@@ -1722,13 +1725,15 @@
       refs.qrSystemId.textContent = parsed.manifestId || '—';
 
       if (parsed.legacyDescriptive) {
-        refs.qrResultTitle.textContent = 'Descriptive QR detected — not production ready';
-        refs.qrIdentityState.textContent = '0 / 6 readiness gates';
-        refs.qrGateAction.textContent = 'AUTHORITATIVE STOP — descriptive QR may be inspected, but final production requires a registered Librarian manifest';
-        refs.registerQrBtn.disabled = true;
-        refs.registerQrBtn.textContent = 'Blocked';
-        setPill(refs.qrStatusPill, 'Registration required', 'blocked');
-        addLog('Production QR blocked', 'A descriptive scene-package QR was decoded. It cannot be treated as Permanent ID authority. Working/preview production may use clearly marked provisional TMP identities, but final authoritative release requires Librarian resolution, a registered manifest, and a verified compact MK1 QR.');
+        refs.qrResultTitle.textContent = 'Descriptive QTDC package recognized';
+        refs.qrIdentityState.textContent = 'WORKING / PREVIEW — Safety-Net';
+        refs.qrGateAction.textContent = 'Working intake allowed with provisional TMP references; final authoritative release remains blocked';
+        refs.qrSystemId.textContent = parsed.descriptivePackageId || 'QTDC-WORKING-PACKAGE';
+        refs.registerQrBtn.disabled = false;
+        refs.registerQrBtn.textContent = 'Load working package';
+        setPill(refs.qrStatusPill, 'Working package recognized', 'active-state');
+        addLog('Descriptive package recognized', 'The QR was accepted for working/preview intake. No Permanent-ID authority or Librarian checksum verification is being claimed.');
+        renderQrRegistry();
         saveState();
         return;
       }
@@ -1792,20 +1797,67 @@
 
     function registerLastScan() {
       const scan = state.lastScan;
-      if (!scan || !scan.compact || scan.mk !== 'MK1' || !scan.readiness?.ready) return;
+      if (!scan) return;
+
+      const registry = state.qrRegistry || (state.qrRegistry = []);
+
+      if (scan.legacyDescriptive) {
+        const packageId = scan.descriptivePackageId || 'QTDC-WORKING-PACKAGE';
+        const existing = registry.find(item =>
+          item.mode === 'WORKING' &&
+          item.packageId === packageId
+        );
+
+        if (!existing) {
+          registry.unshift({
+            mode: 'WORKING',
+            packageId,
+            authorityStatus: 'PROVISIONAL',
+            permanentReferenceCount: 0,
+            checksumStatus: 'NOT VERIFIED — backend Librarian required',
+            finalReleaseEligible: false,
+            firstSeen: new Date().toISOString()
+          });
+        }
+
+        refs.qrResultTitle.textContent = existing ? 'Working package reused' : 'Working package loaded';
+        refs.qrIdentityState.textContent = 'WORKING / PREVIEW — Safety-Net';
+        refs.qrGateAction.textContent = 'TMP/provisional workflow allowed · final authoritative release blocked until Librarian resolution';
+        refs.qrSystemId.textContent = packageId;
+        refs.qrRegistryCount.textContent = '0';
+        refs.registerQrBtn.disabled = true;
+        refs.registerQrBtn.textContent = 'Working package loaded';
+        setPill(refs.qrStatusPill, 'Working mode', 'active-state');
+
+        addLog(existing ? 'Working package reused' : 'Working package loaded',
+          `${packageId} was loaded in Safety-Net working mode. No Permanent IDs were approved and no Librarian checksum verification was claimed.`);
+
+        renderQrRegistry();
+        saveState();
+        toast(`${packageId}: working/preview package loaded. Final authority remains blocked.`);
+        return;
+      }
+
+      if (!scan.compact || scan.mk !== 'MK1' || !scan.readiness?.ready) return;
 
       const librarian = state.librarianManifests || {};
       const manifest = librarian[scan.manifestId];
       if (!manifest) return;
 
-      const registry = state.qrRegistry || (state.qrRegistry = []);
-      const existing = registry.find(item => item.manifestId === scan.manifestId);
+      const existing = registry.find(item =>
+        item.mode === 'AUTHORITATIVE' &&
+        item.manifestId === scan.manifestId
+      );
+
       if (!existing) {
         registry.unshift({
+          mode: 'AUTHORITATIVE',
           manifestId: scan.manifestId,
           checksum: scan.checksum,
           packageId: manifest.package_id || scan.manifestId,
-          requiredIdCount: Array.isArray(manifest.required_ids) ? manifest.required_ids.length : 0,
+          permanentReferenceCount: Array.isArray(manifest.required_ids) ? manifest.required_ids.length : 0,
+          checksumStatus: 'VERIFIED BY LIBRARIAN',
+          finalReleaseEligible: true,
           firstSeen: new Date().toISOString()
         });
       }
@@ -1828,18 +1880,54 @@
     }
 
     function renderQrRegistry() {
-      const registry = state.qrRegistry || [];
+      const rawRegistry = Array.isArray(state.qrRegistry) ? state.qrRegistry : [];
+      const registry = rawRegistry.filter(item => item && typeof item === 'object');
+
       if (!state.lastScan) refs.qrRegistryCount.textContent = '0';
+
       if (!registry.length) {
-        refs.qrRegistryList.innerHTML = '<div class="muted">No approved Librarian manifests loaded yet.</div>';
+        refs.qrRegistryList.innerHTML = '<div class="muted">No QR packages loaded in this Core v1 session yet.</div>';
         return;
       }
-      refs.qrRegistryList.innerHTML = registry.slice(0,6).map(item => `
-        <div class="registry-item">
-          <strong class="mono">${item.manifestId}</strong>
-          <div class="muted">${item.requiredIdCount || 0} approved Permanent-ID reference${item.requiredIdCount === 1 ? '' : 's'} · checksum verified by Librarian · first loaded ${new Date(item.firstSeen).toLocaleString()}</div>
-        </div>
-      `).join('');
+
+      refs.qrRegistryList.innerHTML = registry.slice(0,6).map(item => {
+        const authoritative = item.mode === 'AUTHORITATIVE' && Boolean(item.manifestId);
+        const working = item.mode === 'WORKING';
+
+        if (authoritative) {
+          const id = item.manifestId || item.packageId || 'UNKNOWN-MANIFEST';
+          const count = Number.isFinite(item.permanentReferenceCount)
+            ? item.permanentReferenceCount
+            : (Number.isFinite(item.requiredIdCount) ? item.requiredIdCount : 0);
+          const checksumText = item.checksumStatus === 'VERIFIED BY LIBRARIAN'
+            ? 'checksum verified by Librarian'
+            : 'checksum verification unavailable';
+          return `
+            <div class="registry-item">
+              <strong class="mono">${id}</strong>
+              <div class="muted">${count} approved Permanent-ID reference${count === 1 ? '' : 's'} · ${checksumText} · first loaded ${item.firstSeen ? new Date(item.firstSeen).toLocaleString() : 'this session'}</div>
+            </div>
+          `;
+        }
+
+        if (working) {
+          const id = item.packageId || 'QTDC-WORKING-PACKAGE';
+          return `
+            <div class="registry-item">
+              <strong class="mono">${id}</strong>
+              <div class="muted">WORKING / PREVIEW · 0 approved Permanent-ID references · Librarian checksum NOT verified · final authoritative release blocked · first loaded ${item.firstSeen ? new Date(item.firstSeen).toLocaleString() : 'this session'}</div>
+            </div>
+          `;
+        }
+
+        const legacyId = item.manifestId || item.packageId || item.systemId || 'LEGACY-UNRESOLVED-ENTRY';
+        return `
+          <div class="registry-item">
+            <strong class="mono">${legacyId}</strong>
+            <div class="muted">Legacy/unresolved registry entry · authority not verified · rescan with Core v1 Safety-Net</div>
+          </div>
+        `;
+      }).join('');
     }
 
     function clearQrResult() {
@@ -2277,6 +2365,6 @@
     setupModalChoices();
     renderAll();
   </script>
-<div style="display:none" id="buildMarker">CORE-V1-SAFETY-NET-7</div>
+<div style="display:none" id="buildMarker">CORE-V1-SAFETY-NET-QR-FIX-8</div>
 </body>
 </html>
