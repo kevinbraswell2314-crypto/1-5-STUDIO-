@@ -1,32 +1,49 @@
-# 1-5 Studios — Core v1 Safety-Net Deployment
+# 1-5 Studios — Librarian Manifest Registration v1
 
-This package supersedes the prior static Master-Key protocol prototype.
+This is the first backend authority service required before a valid production QR can exist.
 
-## What changed
-- Separates Security/Intake tracking IDs, provisional TMP identities, and Permanent authoritative IDs.
-- A true no-match may receive a provisional TMP identity so working/preview production can continue.
-- TMP identities are never represented as Permanent.
-- Librarian reconciliation determines exact match, possible match, duplicate, collision, no-match registration, quarantine, or insufficient information.
-- Final authoritative release remains blocked while any required identity is unresolved.
-- Permanent IDs remain protected by a never-reuse rule.
-- Production QR remains compact: MK1 authority + registered manifest ID + checksum.
-- A descriptive/full scene-package QR is not production authority.
+## What it does
 
-## Important deployment limitation
-GitHub Pages is static hosting. It cannot provide the authoritative database, Security service,
-Librarian resolver, Permanent Registry, atomic transactions, or real manifest/checksum verification.
+It accepts a complete scene-package manifest and checks the pre-registration gates:
 
-This deployment is the browser/UI bridge for Core v1. It must not fabricate backend authority.
-The included SQL file is the starter authoritative backend schema for the next implementation phase.
+- SCENE_LOCKED
+- REQUIRED_TAGS_RESOLVED
+- CANONICAL_PACKAGES_FOUND
+- RELATIONSHIPS_VALID
 
-Build marker: CORE-V1-SAFETY-NET-7
+If any required reference is still provisional/unresolved, registration is blocked.
 
+If all pre-registration gates pass, one database transaction:
 
-## QR Fix 8
-- Fixes legacy/stale registry rows that could display `undefined`.
-- Never claims Librarian checksum verification unless an authoritative manifest record actually passed the six gates.
-- Descriptive QTDC QR packages can now be loaded in WORKING / PREVIEW Safety-Net mode.
-- Working package entries explicitly show 0 approved Permanent-ID references and final release blocked.
-- Uses a new browser storage key to prevent stale state from the old deployment from contaminating the corrected QR registry.
+1. checks whether this exact manifest body is already registered;
+2. reuses the existing registration if found;
+3. otherwise creates one registry-issued opaque Manifest ID;
+4. computes a SHA-256 checksum bound to MK1 + Manifest ID + body fingerprint;
+5. stores the manifest;
+6. stores its references;
+7. appends an audit event;
+8. returns the exact compact QR payload:
 
-Build marker: CORE-V1-SAFETY-NET-QR-FIX-8
+`MK1|<REGISTERED_MANIFEST_ID>|<CHECKSUM>`
+
+The service does **not** invent Permanent Asset IDs. Those must already be Librarian-resolved before the manifest can register.
+
+## Important
+
+Running this code against your real PostgreSQL database is the act that creates the real registry record. The example request deliberately contains a provisional placeholder so it will BLOCK until the Librarian resolution step is complete.
+
+## Run locally
+
+1. Create a PostgreSQL database.
+2. Run `schema.sql`.
+3. Set `DATABASE_URL`.
+4. Install `requirements.txt`.
+5. Start:
+
+`uvicorn app:app --host 0.0.0.0 --port 8000`
+
+6. POST the complete QTDC manifest to `/api/v1/manifests/register`.
+
+## Next build after this service
+
+Connect the Master Library/Librarian Resolver so the QTDC provisional IDs are reconciled into authoritative references. Then submit the complete 8-scene QTDC manifest to this service. Only the service's returned `manifest_id` and `checksum` should be handed to the QR generator.

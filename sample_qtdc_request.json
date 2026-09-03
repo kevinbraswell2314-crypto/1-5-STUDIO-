@@ -1,0 +1,35 @@
+{
+  "package_id": "QTDC-IMAGINATION-40S",
+  "authority": "MK1",
+  "scene_locked": true,
+  "canonical_packages_found": true,
+  "relationships_valid": true,
+  "references": [
+    {
+      "ref_id": "REPLACE_WITH_LIBRARIAN_RESOLVED_ID",
+      "ref_type": "CHARACTER",
+      "required": true,
+      "authority_state": "PROVISIONAL"
+    }
+  ],
+  "scenes": [
+    {
+      "scene_id": "QTDC-S01",
+      "beginning": {
+        "status": "placeholder structure only"
+      },
+      "middle": {
+        "status": "placeholder structure only"
+      },
+      "end": {
+        "status": "placeholder structure only"
+      }
+    }
+  ],
+  "relationships": [],
+  "continuity": {},
+  "validation_rules": [],
+  "metadata": {
+    "note": "This sample intentionally remains blocked until real Librarian-resolved authoritative references replace the provisional placeholder."
+  }
+}
