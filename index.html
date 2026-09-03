@@ -1101,6 +1101,7 @@
         <div class="panel-header">
           <div>
             <div class="panel-title">Master-Key / Librarian AI Handoff Protocol</div>
+            <div class="panel-note"><strong>Core v1 Safety-Net:</strong> Intake/Security IDs, provisional TMP identities, and Permanent IDs are separate. A no-match may receive a non-recycled TMP identity so working/preview production can continue. TMP never means Permanent. Final authoritative approval remains blocked until every required identity is Librarian-resolved and the registered manifest/checksum gates pass.</div>
             <div class="panel-note">The AI preparing a scene package must resolve reusable elements before a production QR can exist.</div>
           </div>
           <span class="status-pill active-state">Strict underneath</span>
@@ -1109,7 +1110,7 @@
           <div class="qr-status-grid">
             <div class="qr-stat"><small>Exact match</small><strong>Reuse Permanent ID + canonical package</strong></div>
             <div class="qr-stat"><small>Multiple matches</small><strong>Stop for human selection</strong></div>
-            <div class="qr-stat"><small>No match</small><strong>Send only unresolved element to Librarian Registration</strong></div>
+            <div class="qr-stat"><small>No match</small><strong>Issue provisional TMP working identity → Librarian reconciliation</strong></div>
             <div class="qr-stat"><small>ID authority</small><strong>Scene Roll / Animator cannot issue IDs</strong></div>
           </div>
           <div class="assist-note section-space">
@@ -1197,7 +1198,7 @@
               <div class="drawer" id="drawerIdentity">
                 <button class="drawer-toggle" type="button">
                   <span>Identity resolution</span>
-                  <span>Librarian: exact match / human select / controlled registration</span>
+                  <span>Librarian: exact match / possible match / provisional Safety-Net / controlled registration</span>
                 </button>
                 <div class="drawer-content">
                   <div class="drawer-card detail-list" id="identityDetails"></div>
@@ -1723,11 +1724,11 @@
       if (parsed.legacyDescriptive) {
         refs.qrResultTitle.textContent = 'Descriptive QR detected — not production ready';
         refs.qrIdentityState.textContent = '0 / 6 readiness gates';
-        refs.qrGateAction.textContent = 'HARD STOP — register the full Librarian manifest first';
+        refs.qrGateAction.textContent = 'AUTHORITATIVE STOP — descriptive QR may be inspected, but final production requires a registered Librarian manifest';
         refs.registerQrBtn.disabled = true;
         refs.registerQrBtn.textContent = 'Blocked';
         setPill(refs.qrStatusPill, 'Registration required', 'blocked');
-        addLog('Production QR blocked', 'A descriptive scene-package QR was decoded. It cannot be treated as Permanent ID tags. The AI must resolve identities, register the complete Librarian manifest, then create a compact MK1 QR.');
+        addLog('Production QR blocked', 'A descriptive scene-package QR was decoded. It cannot be treated as Permanent ID authority. Working/preview production may use clearly marked provisional TMP identities, but final authoritative release requires Librarian resolution, a registered manifest, and a verified compact MK1 QR.');
         saveState();
         return;
       }
@@ -1757,11 +1758,11 @@
       if (!manifestRecord) {
         refs.qrResultTitle.textContent = 'Master-Key QR recognized';
         refs.qrIdentityState.textContent = `${readiness.passed} / 6 readiness gates`;
-        refs.qrGateAction.textContent = 'HARD STOP — registered Librarian manifest not available to this browser prototype';
+        refs.qrGateAction.textContent = 'AUTHORITATIVE STOP — working preview may continue with TMP references; final release requires the Librarian backend';
         refs.registerQrBtn.disabled = true;
         refs.registerQrBtn.textContent = 'Librarian connection required';
         setPill(refs.qrStatusPill, 'Manifest lookup required', 'active-state');
-        addLog('Master-Key QR recognized', `${parsed.manifestId} has MK1 authority and a checksum reference, but the authoritative Librarian manifest must be fetched before 1-5 Studios can proceed.`);
+        addLog('Master-Key QR recognized', `${parsed.manifestId} has MK1 authority and a checksum reference. This static prototype may continue only in working/preview mode with clearly marked TMP references; authoritative release requires the real Librarian manifest lookup.`);
         saveState();
         return;
       }
@@ -2276,6 +2277,6 @@
     setupModalChoices();
     renderAll();
   </script>
-<div style="display:none" id="buildMarker">MASTER-KEY-PROTOCOL-6</div>
+<div style="display:none" id="buildMarker">CORE-V1-SAFETY-NET-7</div>
 </body>
 </html>
