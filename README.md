@@ -1,11 +1,12 @@
-# 1-5 Studios QR End-to-End Fix — QR-FIX-4
+# 1-5 Studios — ID Department Wired
 
-This build fixes the scene-package manifest parser for the real compact 1-5S QR format.
+This build keeps the front page simple and wires the QR scene-package scanner into a persistent browser-side ID Department prototype.
 
-Validated against the provided QR payload:
-- Header: 1-5S
-- Package: QTDC-IMAGINATION-40S
-- Scenes: S01 through S08
-- Compact timing: 8 x 5 seconds = 40 seconds
+Flow:
+QR -> manifest inventory -> registry lookup -> reuse existing ID or issue missing unique ID -> duplicate check -> package ready.
 
-The old false rejection "QR must contain one or more 15S ID tags" has been removed for valid 1-5S manifests.
+The parser inventories package, scenes, named characters, CH additions, and explicit EL inventory items. Quantity tokens such as SPACE-HELMETx6 become six individually addressable identities. Re-scanning the same package reuses the same IDs instead of issuing duplicates.
+
+For QTDC-IMAGINATION-40S the UI now reports the real duration as 40 sec rather than 0.666666... minutes.
+
+Important: this is still a static GitHub Pages prototype. The registry is persisted in that browser's localStorage. A production-wide registry shared across devices will require a backend/database.

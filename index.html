@@ -1043,7 +1043,7 @@
         <div class="panel-header">
           <div>
             <div class="panel-title">1-5 Studios / Scene Package QR Scanner</div>
-            <div class="panel-note">This scanner is for 1-5 Studios only. The QR carries compact ID tags — not the video itself. A scan can identify one scene or a multi-scene package representing about 30 minutes of material, then 1-5 Studios resolves those IDs to the stored production material.</div>
+            <div class="panel-note">This scanner is for 1-5 Studios only. The QR carries compact references — not the video itself. After a scan, the background ID Department inventories qualifying people, entities, wardrobe, props, environments, scenes, and package identities; it reuses existing IDs or issues missing unique IDs before 1-5 Studios continues.</div>
           </div>
           <span class="status-pill draft" id="qrStatusPill">Scanner idle</span>
         </div>
@@ -1290,6 +1290,8 @@
         registrationDone: false,
         blocker: null,
         qrRegistry: [],
+        identityRegistry: {},
+        identityCounter: 0,
         lastScan: null,
         queue: [],
         logs: [
@@ -1606,12 +1608,124 @@
       return String(value || '').trim();
     }
 
+    function canonicalEntityKey(category, name, instance = null) {
+      const base = String(name || '')
+        .trim()
+        .toUpperCase()
+        .replace(/[^A-Z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '');
+      return `${category}:${base}${instance ? `#${instance}` : ''}`;
+    }
+
+    function classifyElement(name) {
+      const n = String(name || '').toUpperCase();
+      if (/HELMET|HAT|SUIT|OUTFIT|WARDROBE|COSTUME/.test(n)) return 'WARDROBE';
+      if (/BOOK|CARD|PROP/.test(n)) return 'PROP';
+      if (/DINOSAUR|DINO/.test(n)) return 'ENTITY';
+      if (/FORT|MUSEUM|DAYCARE|SAFARI|SPACE-ENV|SPACESHIP|SHIP|HOME/.test(n)) return 'ENVIRONMENT';
+      return 'ASSET';
+    }
+
+    function collectManifestEntities(raw, packageId, sceneIds) {
+      const entities = [];
+      const seen = new Set();
+      const push = (category, name, instance = null, source = '') => {
+        const clean = String(name || '').trim().toUpperCase();
+        if (!clean) return;
+        const key = canonicalEntityKey(category, clean, instance);
+        if (seen.has(key)) return;
+        seen.add(key);
+        entities.push({ key, category, name: clean, instance, source });
+      };
+
+      if (packageId) push('PACKAGE', packageId, null, 'PACKAGE');
+      sceneIds.forEach(id => push('SCENE', id, null, 'SCENE'));
+
+      // Global character roster: CH:6|MALIK,MARCUS,...
+      const roster = raw.match(/(?:^|[|\n])CH\s*:\s*(\d+)\s*\|\s*([^|\n]+)/i);
+      if (roster) {
+        roster[2].split(',').map(x => x.trim()).filter(Boolean).forEach(name => push('CHARACTER', name, null, 'CH'));
+      }
+
+      // Scene additions such as CH:+DINOSAUR.
+      const chAdds = [...raw.matchAll(/(?:^|[|\n])CH\s*:\s*\+([^|\n]+)/gi)];
+      chAdds.forEach(m => m[1].split(',').map(x => x.trim()).filter(Boolean).forEach(name => {
+        push(/DINO/i.test(name) ? 'ENTITY' : 'CHARACTER', name, null, 'CH:+');
+      }));
+
+      // EL fields are the explicit inventory layer. Quantities produce individually
+      // addressable identities: SPACE-HELMETx6 => six unique registry identities.
+      const elFields = [...raw.matchAll(/(?:^|[|\n])EL\s*:\s*([^|\n]+)/gi)];
+      elFields.forEach(m => {
+        m[1].split(',').map(x => x.trim()).filter(Boolean).forEach(token => {
+          const q = token.match(/^(.+?)x(\d+)$/i);
+          const rawName = q ? q[1].trim() : token;
+          const qty = q ? Math.max(1, Number(q[2])) : 1;
+          const category = classifyElement(rawName);
+          for (let i = 1; i <= qty; i++) push(category, rawName, qty > 1 ? i : null, 'EL');
+        });
+      });
+
+      // Explicit dinosaur continuity can appear outside EL.
+      if (/(?:^|[|\n])DINO\s*:|CH\s*:\s*\+DINOSAUR/i.test(raw)) {
+        push('ENTITY', 'DINOSAUR', null, 'DINO');
+      }
+
+      return entities;
+    }
+
+    function issueOrReuseIdentities(entities) {
+      const registry = state.identityRegistry || (state.identityRegistry = {});
+      const usedIds = new Set(Object.values(registry).map(x => x.id));
+      let issued = 0, reused = 0;
+
+      const prefixMap = {
+        PACKAGE: 'PKG', SCENE: 'SCN', CHARACTER: 'CHR', ENTITY: 'ENT',
+        WARDROBE: 'WRD', PROP: 'PRP', ENVIRONMENT: 'ENV', ASSET: 'AST'
+      };
+
+      const resolved = entities.map(entity => {
+        const existing = registry[entity.key];
+        if (existing) {
+          reused++;
+          return { ...entity, id: existing.id, status: 'REUSED' };
+        }
+
+        let id;
+        do {
+          state.identityCounter = Number(state.identityCounter || 0) + 1;
+          const prefix = prefixMap[entity.category] || 'ID';
+          id = `15S-${prefix}-${String(state.identityCounter).padStart(6, '0')}`;
+        } while (usedIds.has(id));
+
+        usedIds.add(id);
+        registry[entity.key] = {
+          id,
+          category: entity.category,
+          name: entity.name,
+          instance: entity.instance,
+          firstIssued: new Date().toISOString()
+        };
+        issued++;
+        return { ...entity, id, status: 'ISSUED' };
+      });
+
+      return { resolved, issued, reused, total: resolved.length };
+    }
+
+    function formatPackageDuration(minutes) {
+      if (!Number.isFinite(minutes)) return 'up to ≈ 30 min';
+      const seconds = Math.round(minutes * 60 * 1000) / 1000;
+      if (seconds < 60) return `${Number.isInteger(seconds) ? seconds : seconds.toFixed(3).replace(/0+$/,'').replace(/\.$/,'')} sec`;
+      const mins = Math.floor(seconds / 60);
+      const rem = Math.round((seconds - mins * 60) * 1000) / 1000;
+      return rem ? `${mins} min ${rem} sec` : `${mins} min`;
+    }
+
     function parseScenePackageQr(rawValue) {
       const raw = normalizeQrValue(rawValue).replace(/\r\n?/g, '\n');
-      if (!raw) return { raw, ids: [], packageId: null, durationMinutes: null, valid1to5: false, sceneIds: [] };
+      if (!raw) return { raw, ids: [], packageId: null, durationMinutes: null, valid1to5: false, sceneIds: [], entities: [] };
 
-      // QR-FIX-4: Accept the real 1-5 Studios compact production manifest.
-      // Example begins: 1-5S|QTDC-40S|PACKAGE:QTDC-IMAGINATION-40S|8x5.000s=40.000s|...
       const valid1to5 = /^\s*1-5S(?:\||\n|$)/i.test(raw) || /(?:^|[|\n])PACKAGE\s*:/i.test(raw);
       const collected = [];
       const addId = (value) => {
@@ -1619,15 +1733,12 @@
         if (v && !collected.includes(v)) collected.push(v);
       };
 
-      // Package identity is authoritative for compact 1-5S QR manifests.
       const packageMatch = raw.match(/(?:^|[|\n])PACKAGE\s*:\s*([^|\n]+)/i);
       const packageId = packageMatch ? packageMatch[1].trim().toUpperCase() : null;
       if (packageId) addId(packageId);
 
-      // Legacy explicit 15S identifiers remain supported.
       (raw.match(/15S-[A-Z0-9][A-Z0-9_-]*/gi) || []).forEach(addId);
 
-      // Scene rows can be on new lines and each row continues with | fields.
       const sceneIds = [];
       const sceneRe = /(?:^|\n)\s*(S\d{2,4})(?=\||\s|$)/gim;
       let sceneMatch;
@@ -1636,8 +1747,6 @@
         if (!sceneIds.includes(id)) sceneIds.push(id);
         addId(id);
       }
-
-      // Also recognize scene IDs embedded as pipe-delimited tokens.
       (raw.match(/(?:^|\|)(S\d{2,4})(?=\||\n|$)/gim) || []).forEach(token => {
         const m = token.match(/S\d{2,4}/i);
         if (m) {
@@ -1647,23 +1756,20 @@
         }
       });
 
-      // Keep the compact manifest header's project/run identity as a reference.
       const headerMatch = raw.match(/^\s*1-5S\|([^|\n]+)/i);
       if (headerMatch) addId(headerMatch[1]);
 
       let durationMinutes = null;
       const explicitMinutes = raw.match(/(?:DUR|DURATION|MIN|MINUTES)\s*[:=]\s*(\d{1,3}(?:\.\d+)?)/i);
-      if (explicitMinutes) {
-        durationMinutes = Number(explicitMinutes[1]);
-      } else {
+      if (explicitMinutes) durationMinutes = Number(explicitMinutes[1]);
+      else {
         const compactSeconds = raw.match(/(?:^|\|)\s*\d+\s*x\s*\d+(?:\.\d+)?s\s*=\s*(\d+(?:\.\d+)?)s(?=\||\n|$)/i);
         if (compactSeconds) durationMinutes = Number(compactSeconds[1]) / 60;
       }
 
-      // A decoded QR that declares itself as a 1-5S manifest is valid even if it
-      // contains only a package identity and no Sxx rows. This prevents the old
-      // false "must contain 15S ID tags" rejection.
       if (valid1to5 && !collected.length) addId(packageId || '1-5S-MANIFEST');
+
+      const entities = collectManifestEntities(raw, packageId || collected[0] || null, sceneIds);
 
       return {
         raw,
@@ -1671,7 +1777,8 @@
         packageId: packageId || collected[0] || null,
         durationMinutes,
         valid1to5,
-        sceneIds
+        sceneIds,
+        entities
       };
     }
 
@@ -1715,10 +1822,10 @@
         addLog('Scene-package QR recognized', `${existing.packageId} matched the local package registry.`);
       } else {
         refs.qrResultTitle.textContent = parsed.valid1to5 ? '1-5 Studios scene-package manifest recognized' : (parsed.ids.length === 1 ? 'Scene/package ID recognized' : 'Scene-package manifest recognized');
-        refs.qrIdentityState.textContent = `${parsed.ids.length} unique ID reference${parsed.ids.length === 1 ? '' : 's'} found${parsed.sceneIds?.length ? ` · ${parsed.sceneIds.length} scene${parsed.sceneIds.length === 1 ? '' : 's'}` : ''} · parser QR-FIX-4`;
+        refs.qrIdentityState.textContent = `${parsed.entities.length} qualifying identities inventoried · ${parsed.sceneIds?.length || 0} scenes · ID Department pending · build ID-DEPT-WIRED-5`;
         refs.qrGateAction.textContent = parsed.durationMinutes
-          ? `Ready to resolve IDs · manifest says ${parsed.durationMinutes} min`
-          : 'Ready to resolve IDs into stored 1-5 Studios material';
+          ? `Ready for ID Department · ${formatPackageDuration(parsed.durationMinutes)} package`
+          : 'Ready for ID Department to reuse or issue permanent IDs';
         refs.registerQrBtn.disabled = false;
         refs.registerQrBtn.textContent = 'Load scene package';
         setPill(refs.qrStatusPill, 'IDs ready', 'active-state');
@@ -1730,33 +1837,55 @@
 
     function registerLastScan() {
       const scan = state.lastScan;
-      if (!scan || !scan.raw || !scan.ids?.length) return;
-      const registry = state.qrRegistry || (state.qrRegistry = []);
-      const packageId = scan.packageId || scan.ids[0];
-      const existing = registry.find(item => item.packageId === packageId);
+      if (!scan || !scan.raw || !scan.valid1to5) return;
 
-      if (!existing) {
+      const registry = state.qrRegistry || (state.qrRegistry = []);
+      const packageId = scan.packageId || scan.ids?.[0] || '1-5S-MANIFEST';
+      const existingPackage = registry.find(item => item.packageId === packageId);
+
+      // This is the wired ID-issuing department. Every qualifying identity is
+      // checked against one persistent local registry. Exact matches reuse their
+      // existing ID; only missing identities receive a newly issued unique ID.
+      const resolution = issueOrReuseIdentities(scan.entities || []);
+      const resolvedIds = resolution.resolved.map(x => x.id);
+
+      if (!existingPackage) {
         registry.unshift({
           packageId,
-          ids: [...scan.ids],
-          durationMinutes: scan.durationMinutes || 30,
+          ids: resolvedIds,
+          references: [...(scan.ids || [])],
+          durationMinutes: scan.durationMinutes,
+          entityCount: resolution.total,
           firstSeen: new Date().toISOString()
         });
-        addLog('Scene package loaded', `${packageId} resolved with ${scan.ids.length} unique ID tag(s). QR carries references only; production material remains stored in 1-5 Studios.`);
       } else {
-        addLog('Existing scene package reused', `${packageId} was already registered, so no duplicate package identity was created.`);
+        existingPackage.ids = [...new Set([...(existingPackage.ids || []), ...resolvedIds])];
+        existingPackage.references = [...new Set([...(existingPackage.references || []), ...(scan.ids || [])])];
+        existingPackage.entityCount = resolution.total;
+        existingPackage.durationMinutes = scan.durationMinutes;
       }
 
-      refs.qrResultTitle.textContent = existing ? 'Existing package loaded' : 'Scene package loaded';
-      refs.qrIdentityState.textContent = `${scan.ids.length} unique ID tag${scan.ids.length === 1 ? '' : 's'}`;
-      refs.qrGateAction.textContent = 'IDs resolved / package ready for 1-5 Studios workflow';
+      state.lastScan.resolution = resolution;
+
+      const detail = `${resolution.total} qualifying identities inspected · ${resolution.reused} existing ID${resolution.reused === 1 ? '' : 's'} reused · ${resolution.issued} new ID${resolution.issued === 1 ? '' : 's'} issued · 0 duplicate IDs.`;
+      addLog('ID Department resolution complete', detail);
+      if (existingPackage) {
+        addLog('Existing scene package reused', `${packageId} was already registered. Package identity was reused; no duplicate package ID was created.`);
+      } else {
+        addLog('Scene package registered', `${packageId} passed through the ID Department and is ready for the 1-5 Studios workflow.`);
+      }
+
+      refs.qrResultTitle.textContent = existingPackage ? 'Existing package loaded + IDs verified' : 'Scene package loaded + IDs issued';
+      refs.qrIdentityState.textContent = detail;
+      refs.qrGateAction.textContent = 'ID Department complete / package ready for 1-5 Studios workflow';
       refs.qrSystemId.textContent = packageId;
+      refs.qrRegistryCount.textContent = String(resolution.total);
       refs.registerQrBtn.disabled = true;
       refs.registerQrBtn.textContent = 'Package loaded';
-      setPill(refs.qrStatusPill, 'Package ready', 'approved');
+      setPill(refs.qrStatusPill, 'IDs resolved', 'approved');
       renderQrRegistry();
       saveState();
-      toast(`${packageId} loaded into 1-5 Studios.`);
+      toast(`${packageId}: ${resolution.reused} reused, ${resolution.issued} issued, 0 duplicates.`);
     }
 
     function renderQrRegistry() {
@@ -1769,7 +1898,7 @@
       refs.qrRegistryList.innerHTML = registry.slice(0,6).map(item => `
         <div class="registry-item">
           <strong class="mono">${item.packageId}</strong>
-          <div class="muted">${item.ids.length} ID tag${item.ids.length === 1 ? '' : 's'} · ≈ ${item.durationMinutes || 30} min package · first scanned ${new Date(item.firstSeen).toLocaleString()}</div>
+          <div class="muted">${item.ids.length} resolved ID tag${item.ids.length === 1 ? '' : 's'} · ${formatPackageDuration(item.durationMinutes)} package · first scanned ${new Date(item.firstSeen).toLocaleString()}</div>
         </div>
       `).join('');
     }
