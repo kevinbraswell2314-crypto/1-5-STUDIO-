@@ -1,32 +1,44 @@
-# 1-5 Studios — Librarian Permanent-ID Resolver v1
+# 1-5 Studios Master Library + Resolver v1
 
-This is the next backend authority component before QTDC can receive a registered MK1 manifest.
+This is an implementation starter for a real PostgreSQL-backed authority service. It does not contain registry records and it never generates a Permanent ID. A Permanent ID can enter the registry only through the authenticated `authority-register` endpoint with the ID supplied by an authorized human/authority.
 
-## Purpose
+## Apply migrations
 
-Resolve `15S-TMP-*` working identities against the Master Library without fabricating or silently duplicating authoritative identities.
+```bash
+psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f migrations/001_initial.sql
+psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f migrations/002_manifest.sql
+```
 
-Resolution outcomes:
-- EXACT_MATCH
-- NO_MATCH
-- COLLISION
-- REGISTERED
+## Run
 
-## Important authority rule
+```bash
+python -m pip install -r requirements.txt
+DATABASE_URL='postgresql://...' uvicorn app:app --host 0.0.0.0 --port 8000
+```
 
-A provisional TMP tag is never treated as a Permanent ID.
+Every API call requires `X-Actor-Id`. In production replace this development boundary with verified OIDC/JWT middleware and map actor IDs to roles. The browser/UI must not hold database credentials.
 
-The service first searches the authoritative Permanent Identity Registry.
+## Resolver outcomes
 
-If an exact authoritative match exists, it returns that candidate and requires an authority decision to redirect the TMP record to the surviving Permanent ID.
+- `EXACT_MATCH`: one authoritative registry record, with registry evidence; authority decision is still required unless an existing redirect is present.
+- `COLLISION`: multiple authoritative records; returns all evidence-backed candidates and stops.
+- `NO_MATCH / REGISTRATION REQUIRED`: no authoritative record; no ID is created.
+- `QUARANTINED`: returned by the authority-decision flow when a record is unsafe or insufficient.
 
-If no match exists, it returns a registration candidate. A Permanent ID is only created when the controlled registration path is explicitly enabled.
+## Security guarantees implemented
 
-## QTDC core seed
+- `id_history` is checked before registration and prevents reuse of any historical Permanent ID.
+- Permanent registration requires an authenticated actor, an explicit authority record, and a caller-supplied Permanent ID; the service does not generate IDs.
+- Redirects require an existing active authoritative target.
+- Audit events are inserted in the same transaction as state changes and are protected by database triggers against update/delete.
+- Resolver search uses authoritative status and returns database evidence, never name-only inference in the response.
 
-`qtdc_core_seed.json` contains the first eight reusable provisional identities:
-Malik, Marcus, Lucy, Sophie, Kai, Kenji, the recurring green dinosaur, and the magical book.
+## Still required before production
 
-## Next step after this
+1. Provision PostgreSQL with TLS, backups, PITR, monitoring, and separate staging/production databases.
+2. Create least-privilege DB roles; prevent the API runtime role from deleting/updating `audit_events` and from registering IDs unless it is the dedicated authority service.
+3. Add OIDC/JWT verification, role checks (`RESOLVER_SERVICE`, `LIBRARIAN`, `REGISTRATION_AUTHORITY`, `AUDITOR`), rate limits, and secret-manager delivery.
+4. Add integration tests against PostgreSQL, including concurrent registration, duplicate registration, redirect, collision, quarantine, and audit immutability.
+5. Build the Manifest Registration service that validates all required references, computes/verifies checksum, registers/locks the manifest, and only then emits the compact MK1 QR payload.
 
-Run these QTDC provisional identities through the Resolver against the real Master Library. Once every required QTDC reference is resolved to authoritative Permanent IDs, submit the complete 8-scene manifest to the Manifest Registration service. That service then returns the real registered Manifest ID and verified checksum needed for the new production QR.
+No seed records are included. Load only authority-approved records through the controlled registration process.
