@@ -1,49 +1,32 @@
-# 1-5 Studios — Librarian Manifest Registration v1
+# 1-5 Studios — Librarian Permanent-ID Resolver v1
 
-This is the first backend authority service required before a valid production QR can exist.
+This is the next backend authority component before QTDC can receive a registered MK1 manifest.
 
-## What it does
+## Purpose
 
-It accepts a complete scene-package manifest and checks the pre-registration gates:
+Resolve `15S-TMP-*` working identities against the Master Library without fabricating or silently duplicating authoritative identities.
 
-- SCENE_LOCKED
-- REQUIRED_TAGS_RESOLVED
-- CANONICAL_PACKAGES_FOUND
-- RELATIONSHIPS_VALID
+Resolution outcomes:
+- EXACT_MATCH
+- NO_MATCH
+- COLLISION
+- REGISTERED
 
-If any required reference is still provisional/unresolved, registration is blocked.
+## Important authority rule
 
-If all pre-registration gates pass, one database transaction:
+A provisional TMP tag is never treated as a Permanent ID.
 
-1. checks whether this exact manifest body is already registered;
-2. reuses the existing registration if found;
-3. otherwise creates one registry-issued opaque Manifest ID;
-4. computes a SHA-256 checksum bound to MK1 + Manifest ID + body fingerprint;
-5. stores the manifest;
-6. stores its references;
-7. appends an audit event;
-8. returns the exact compact QR payload:
+The service first searches the authoritative Permanent Identity Registry.
 
-`MK1|<REGISTERED_MANIFEST_ID>|<CHECKSUM>`
+If an exact authoritative match exists, it returns that candidate and requires an authority decision to redirect the TMP record to the surviving Permanent ID.
 
-The service does **not** invent Permanent Asset IDs. Those must already be Librarian-resolved before the manifest can register.
+If no match exists, it returns a registration candidate. A Permanent ID is only created when the controlled registration path is explicitly enabled.
 
-## Important
+## QTDC core seed
 
-Running this code against your real PostgreSQL database is the act that creates the real registry record. The example request deliberately contains a provisional placeholder so it will BLOCK until the Librarian resolution step is complete.
+`qtdc_core_seed.json` contains the first eight reusable provisional identities:
+Malik, Marcus, Lucy, Sophie, Kai, Kenji, the recurring green dinosaur, and the magical book.
 
-## Run locally
+## Next step after this
 
-1. Create a PostgreSQL database.
-2. Run `schema.sql`.
-3. Set `DATABASE_URL`.
-4. Install `requirements.txt`.
-5. Start:
-
-`uvicorn app:app --host 0.0.0.0 --port 8000`
-
-6. POST the complete QTDC manifest to `/api/v1/manifests/register`.
-
-## Next build after this service
-
-Connect the Master Library/Librarian Resolver so the QTDC provisional IDs are reconciled into authoritative references. Then submit the complete 8-scene QTDC manifest to this service. Only the service's returned `manifest_id` and `checksum` should be handed to the QR generator.
+Run these QTDC provisional identities through the Resolver against the real Master Library. Once every required QTDC reference is resolved to authoritative Permanent IDs, submit the complete 8-scene manifest to the Manifest Registration service. That service then returns the real registered Manifest ID and verified checksum needed for the new production QR.

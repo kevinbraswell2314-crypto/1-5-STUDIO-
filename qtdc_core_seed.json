@@ -1,0 +1,42 @@
+[
+  {
+    "provisional_id": "15S-TMP-CHR-000001",
+    "category": "CHR",
+    "canonical_name": "Malik"
+  },
+  {
+    "provisional_id": "15S-TMP-CHR-000002",
+    "category": "CHR",
+    "canonical_name": "Marcus"
+  },
+  {
+    "provisional_id": "15S-TMP-CHR-000003",
+    "category": "CHR",
+    "canonical_name": "Lucy"
+  },
+  {
+    "provisional_id": "15S-TMP-CHR-000004",
+    "category": "CHR",
+    "canonical_name": "Sophie"
+  },
+  {
+    "provisional_id": "15S-TMP-CHR-000005",
+    "category": "CHR",
+    "canonical_name": "Kai"
+  },
+  {
+    "provisional_id": "15S-TMP-CHR-000006",
+    "category": "CHR",
+    "canonical_name": "Kenji"
+  },
+  {
+    "provisional_id": "15S-TMP-CRE-000001",
+    "category": "CRE",
+    "canonical_name": "Recurring green dinosaur"
+  },
+  {
+    "provisional_id": "15S-TMP-PRP-000001",
+    "category": "PRP",
+    "canonical_name": "Magical book"
+  }
+]

@@ -1,24 +1,48 @@
-CREATE TABLE IF NOT EXISTS manifests (
-    manifest_id UUID PRIMARY KEY,
-    authority TEXT NOT NULL,
-    package_id TEXT NOT NULL,
-    status TEXT NOT NULL CHECK (status IN ('REGISTERED','RETIRED','INVALIDATED')),
-    body_json JSONB NOT NULL,
-    body_fingerprint TEXT NOT NULL,
-    checksum TEXT NOT NULL,
-    registered_at TIMESTAMPTZ NOT NULL,
-    UNIQUE(authority, body_fingerprint),
-    UNIQUE(authority, checksum)
+CREATE TABLE IF NOT EXISTS id_history (
+    id_value TEXT PRIMARY KEY,
+    id_namespace TEXT NOT NULL,
+    status TEXT NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL
 );
 
-CREATE TABLE IF NOT EXISTS manifest_references (
-    manifest_id UUID NOT NULL REFERENCES manifests(manifest_id) ON DELETE RESTRICT,
-    ref_id TEXT NOT NULL,
-    ref_type TEXT NOT NULL,
-    required BOOLEAN NOT NULL DEFAULT TRUE,
-    authority_state TEXT NOT NULL,
-    package_version_id TEXT,
-    PRIMARY KEY (manifest_id, ref_id)
+CREATE TABLE IF NOT EXISTS provisional_identities (
+    provisional_id TEXT PRIMARY KEY,
+    category TEXT NOT NULL,
+    canonical_name TEXT NOT NULL,
+    source_ref TEXT,
+    project_id TEXT,
+    evidence_json JSONB NOT NULL DEFAULT '{}'::jsonb,
+    status TEXT NOT NULL,
+    resolved_permanent_id TEXT,
+    created_at TIMESTAMPTZ NOT NULL,
+    updated_at TIMESTAMPTZ NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS permanent_identities (
+    permanent_id TEXT PRIMARY KEY,
+    category TEXT NOT NULL,
+    canonical_name TEXT NOT NULL,
+    status TEXT NOT NULL,
+    authority_record TEXT NOT NULL,
+    source_ref TEXT,
+    created_at TIMESTAMPTZ NOT NULL,
+    first_legitimate_assignment_at TIMESTAMPTZ NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS identity_redirects (
+    provisional_id TEXT PRIMARY KEY REFERENCES provisional_identities(provisional_id) ON DELETE RESTRICT,
+    target_permanent_id TEXT NOT NULL REFERENCES permanent_identities(permanent_id) ON DELETE RESTRICT,
+    reason TEXT NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS duplicate_cases (
+    case_id UUID PRIMARY KEY,
+    provisional_id TEXT NOT NULL,
+    candidate_permanent_id TEXT,
+    case_type TEXT NOT NULL,
+    status TEXT NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS audit_events (
@@ -26,11 +50,10 @@ CREATE TABLE IF NOT EXISTS audit_events (
     event_type TEXT NOT NULL,
     actor_type TEXT NOT NULL,
     actor_id TEXT NOT NULL,
-    manifest_id UUID,
+    entity_id TEXT,
     details_json JSONB NOT NULL,
     created_at TIMESTAMPTZ NOT NULL
 );
 
-CREATE INDEX IF NOT EXISTS idx_manifests_package_id ON manifests(package_id);
-CREATE INDEX IF NOT EXISTS idx_manifest_refs_ref_id ON manifest_references(ref_id);
-CREATE INDEX IF NOT EXISTS idx_audit_manifest_id ON audit_events(manifest_id);
+CREATE INDEX IF NOT EXISTS idx_perm_name_cat ON permanent_identities(lower(category), lower(canonical_name));
+CREATE INDEX IF NOT EXISTS idx_prov_status ON provisional_identities(status);
