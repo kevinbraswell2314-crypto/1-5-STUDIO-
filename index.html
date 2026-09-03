@@ -1043,7 +1043,7 @@
         <div class="panel-header">
           <div>
             <div class="panel-title">1-5 Studios / Scene Package QR Scanner</div>
-            <div class="panel-note">This scanner is for 1-5 Studios only. The QR carries compact references — not the video itself. After a scan, the background ID Department inventories qualifying people, entities, wardrobe, props, environments, scenes, and package identities; it reuses existing IDs or issues missing unique IDs before 1-5 Studios continues.</div>
+            <div class="panel-note">This scanner is for 1-5 Studios only. Production QR codes carry only MK1 authority, a registered Librarian Scene Manifest ID, and its checksum — never the full scene description or invented labels. 1-5 Studios resolves the registered manifest, temporarily loads approved canonical packages, generates, validates, saves continuity, and unloads heavy package bodies.</div>
           </div>
           <span class="status-pill draft" id="qrStatusPill">Scanner idle</span>
         </div>
@@ -1054,7 +1054,7 @@
                 <video id="qrVideo" playsinline muted></video>
                 <div class="scanner-placeholder" id="scannerPlaceholder">
                   <strong style="display:block;color:var(--text);font-size:1.08rem;margin-bottom:10px;">Scene-package scanner ready</strong>
-                  Point the camera at a 1-5 Studios QR code. The code may contain a package ID alone or a compact manifest of scene, shot, character, prop, audio, animation, and other ID tags.
+                  Point the camera at a production-ready 1-5 Studios QR. Required payload: MK1 authority + registered Scene Manifest ID + checksum.
                 </div>
                 <div class="scanner-reticle" aria-hidden="true"></div>
                 <div class="scanner-beam" aria-hidden="true"></div>
@@ -1066,8 +1066,8 @@
                 <input class="file-scan-input" id="qrImageInput" type="file" accept="image/*" capture="environment" />
               </div>
               <div class="manual-scan-row">
-                <input id="manualQrInput" placeholder="Paste package ID or ID-tag manifest" autocomplete="off" />
-                <button class="btn btn-secondary" type="button" id="manualScanBtn">Read IDs</button>
+                <input id="manualQrInput" placeholder='Paste {"mk":"MK1","manifest_id":"...","checksum":"..."}' autocomplete="off" />
+                <button class="btn btn-secondary" type="button" id="manualScanBtn">Read Master-Key QR</button>
               </div>
             </div>
             <div class="qr-result">
@@ -1078,7 +1078,7 @@
                 <div class="qr-stat"><small>Package state</small><strong id="qrIdentityState">Unknown</strong></div>
                 <div class="qr-stat"><small>Resolution action</small><strong id="qrGateAction">Waiting</strong></div>
                 <div class="qr-stat"><small>Package / lead ID</small><strong class="mono" id="qrSystemId">—</strong></div>
-                <div class="qr-stat"><small>ID tags found</small><strong id="qrRegistryCount">0</strong></div>
+                <div class="qr-stat"><small>Readiness gates passed</small><strong id="qrRegistryCount">0</strong></div>
               </div>
               <div class="button-row section-space">
                 <button class="btn btn-primary" type="button" id="registerQrBtn" disabled>Load scene package</button>
@@ -1086,12 +1086,37 @@
               </div>
               <div class="tag-row section-space">
                 <span class="tag mono">1-5 STUDIOS ONLY</span>
-                <span class="tag mono">QR = ID TAGS ONLY</span>
+                <span class="tag mono">QR = MK1 + MANIFEST ID + CHECKSUM</span>
                 <span class="tag mono">≈ 30 MIN PACKAGE</span>
-                <span class="tag mono">NO DUPLICATE ID</span>
+                <span class="tag mono">LIBRARIAN ISSUES IDs ONLY</span>
               </div>
               <div class="registry-list" id="qrRegistryList"></div>
             </div>
+          </div>
+        </div>
+      </section>
+
+
+      <section class="panel" id="masterKeyProtocol">
+        <div class="panel-header">
+          <div>
+            <div class="panel-title">Master-Key / Librarian AI Handoff Protocol</div>
+            <div class="panel-note">The AI preparing a scene package must resolve reusable elements before a production QR can exist.</div>
+          </div>
+          <span class="status-pill active-state">Strict underneath</span>
+        </div>
+        <div class="panel-body">
+          <div class="qr-status-grid">
+            <div class="qr-stat"><small>Exact match</small><strong>Reuse Permanent ID + canonical package</strong></div>
+            <div class="qr-stat"><small>Multiple matches</small><strong>Stop for human selection</strong></div>
+            <div class="qr-stat"><small>No match</small><strong>Send only unresolved element to Librarian Registration</strong></div>
+            <div class="qr-stat"><small>ID authority</small><strong>Scene Roll / Animator cannot issue IDs</strong></div>
+          </div>
+          <div class="assist-note section-space">
+            <strong>Registration path:</strong> QUARANTINE → SEARCH AGAIN → RESEARCH → AUDIT #1 → WIDE-NET RESEARCH → AUDIT #2 → VERIFY → AUTHORIZE → ISSUE ONE PERMANENT ID → BUILD ONE CANONICAL PACKAGE → LOCK → RETURN THE ID.
+          </div>
+          <div class="assist-note section-space">
+            <strong>QR readiness gate:</strong> SCENE_LOCKED × REQUIRED_TAGS_RESOLVED × CANONICAL_PACKAGES_FOUND × RELATIONSHIPS_VALID × MANIFEST_REGISTERED × CHECKSUM_VERIFIED = QR_READY. If any factor is zero, production must stop.
           </div>
         </div>
       </section>
@@ -1172,7 +1197,7 @@
               <div class="drawer" id="drawerIdentity">
                 <button class="drawer-toggle" type="button">
                   <span>Identity resolution</span>
-                  <span>Exact match / select / register</span>
+                  <span>Librarian: exact match / human select / controlled registration</span>
                 </button>
                 <div class="drawer-content">
                   <div class="drawer-card detail-list" id="identityDetails"></div>
@@ -1290,8 +1315,7 @@
         registrationDone: false,
         blocker: null,
         qrRegistry: [],
-        identityRegistry: {},
-        identityCounter: 0,
+        librarianManifests: {},
         lastScan: null,
         queue: [],
         logs: [
@@ -1608,113 +1632,8 @@
       return String(value || '').trim();
     }
 
-    function canonicalEntityKey(category, name, instance = null) {
-      const base = String(name || '')
-        .trim()
-        .toUpperCase()
-        .replace(/[^A-Z0-9]+/g, '-')
-        .replace(/^-+|-+$/g, '');
-      return `${category}:${base}${instance ? `#${instance}` : ''}`;
-    }
-
-    function classifyElement(name) {
-      const n = String(name || '').toUpperCase();
-      if (/HELMET|HAT|SUIT|OUTFIT|WARDROBE|COSTUME/.test(n)) return 'WARDROBE';
-      if (/BOOK|CARD|PROP/.test(n)) return 'PROP';
-      if (/DINOSAUR|DINO/.test(n)) return 'ENTITY';
-      if (/FORT|MUSEUM|DAYCARE|SAFARI|SPACE-ENV|SPACESHIP|SHIP|HOME/.test(n)) return 'ENVIRONMENT';
-      return 'ASSET';
-    }
-
-    function collectManifestEntities(raw, packageId, sceneIds) {
-      const entities = [];
-      const seen = new Set();
-      const push = (category, name, instance = null, source = '') => {
-        const clean = String(name || '').trim().toUpperCase();
-        if (!clean) return;
-        const key = canonicalEntityKey(category, clean, instance);
-        if (seen.has(key)) return;
-        seen.add(key);
-        entities.push({ key, category, name: clean, instance, source });
-      };
-
-      if (packageId) push('PACKAGE', packageId, null, 'PACKAGE');
-      sceneIds.forEach(id => push('SCENE', id, null, 'SCENE'));
-
-      // Global character roster: CH:6|MALIK,MARCUS,...
-      const roster = raw.match(/(?:^|[|\n])CH\s*:\s*(\d+)\s*\|\s*([^|\n]+)/i);
-      if (roster) {
-        roster[2].split(',').map(x => x.trim()).filter(Boolean).forEach(name => push('CHARACTER', name, null, 'CH'));
-      }
-
-      // Scene additions such as CH:+DINOSAUR.
-      const chAdds = [...raw.matchAll(/(?:^|[|\n])CH\s*:\s*\+([^|\n]+)/gi)];
-      chAdds.forEach(m => m[1].split(',').map(x => x.trim()).filter(Boolean).forEach(name => {
-        push(/DINO/i.test(name) ? 'ENTITY' : 'CHARACTER', name, null, 'CH:+');
-      }));
-
-      // EL fields are the explicit inventory layer. Quantities produce individually
-      // addressable identities: SPACE-HELMETx6 => six unique registry identities.
-      const elFields = [...raw.matchAll(/(?:^|[|\n])EL\s*:\s*([^|\n]+)/gi)];
-      elFields.forEach(m => {
-        m[1].split(',').map(x => x.trim()).filter(Boolean).forEach(token => {
-          const q = token.match(/^(.+?)x(\d+)$/i);
-          const rawName = q ? q[1].trim() : token;
-          const qty = q ? Math.max(1, Number(q[2])) : 1;
-          const category = classifyElement(rawName);
-          for (let i = 1; i <= qty; i++) push(category, rawName, qty > 1 ? i : null, 'EL');
-        });
-      });
-
-      // Explicit dinosaur continuity can appear outside EL.
-      if (/(?:^|[|\n])DINO\s*:|CH\s*:\s*\+DINOSAUR/i.test(raw)) {
-        push('ENTITY', 'DINOSAUR', null, 'DINO');
-      }
-
-      return entities;
-    }
-
-    function issueOrReuseIdentities(entities) {
-      const registry = state.identityRegistry || (state.identityRegistry = {});
-      const usedIds = new Set(Object.values(registry).map(x => x.id));
-      let issued = 0, reused = 0;
-
-      const prefixMap = {
-        PACKAGE: 'PKG', SCENE: 'SCN', CHARACTER: 'CHR', ENTITY: 'ENT',
-        WARDROBE: 'WRD', PROP: 'PRP', ENVIRONMENT: 'ENV', ASSET: 'AST'
-      };
-
-      const resolved = entities.map(entity => {
-        const existing = registry[entity.key];
-        if (existing) {
-          reused++;
-          return { ...entity, id: existing.id, status: 'REUSED' };
-        }
-
-        let id;
-        do {
-          state.identityCounter = Number(state.identityCounter || 0) + 1;
-          const prefix = prefixMap[entity.category] || 'ID';
-          id = `15S-${prefix}-${String(state.identityCounter).padStart(6, '0')}`;
-        } while (usedIds.has(id));
-
-        usedIds.add(id);
-        registry[entity.key] = {
-          id,
-          category: entity.category,
-          name: entity.name,
-          instance: entity.instance,
-          firstIssued: new Date().toISOString()
-        };
-        issued++;
-        return { ...entity, id, status: 'ISSUED' };
-      });
-
-      return { resolved, issued, reused, total: resolved.length };
-    }
-
     function formatPackageDuration(minutes) {
-      if (!Number.isFinite(minutes)) return 'up to ≈ 30 min';
+      if (!Number.isFinite(minutes)) return 'duration from registered manifest';
       const seconds = Math.round(minutes * 60 * 1000) / 1000;
       if (seconds < 60) return `${Number.isInteger(seconds) ? seconds : seconds.toFixed(3).replace(/0+$/,'').replace(/\.$/,'')} sec`;
       const mins = Math.floor(seconds / 60);
@@ -1722,183 +1641,202 @@
       return rem ? `${mins} min ${rem} sec` : `${mins} min`;
     }
 
-    function parseScenePackageQr(rawValue) {
+    function parseMasterKeyQr(rawValue) {
       const raw = normalizeQrValue(rawValue).replace(/\r\n?/g, '\n');
-      if (!raw) return { raw, ids: [], packageId: null, durationMinutes: null, valid1to5: false, sceneIds: [], entities: [] };
-
-      const valid1to5 = /^\s*1-5S(?:\||\n|$)/i.test(raw) || /(?:^|[|\n])PACKAGE\s*:/i.test(raw);
-      const collected = [];
-      const addId = (value) => {
-        const v = String(value || '').trim().toUpperCase();
-        if (v && !collected.includes(v)) collected.push(v);
-      };
-
-      const packageMatch = raw.match(/(?:^|[|\n])PACKAGE\s*:\s*([^|\n]+)/i);
-      const packageId = packageMatch ? packageMatch[1].trim().toUpperCase() : null;
-      if (packageId) addId(packageId);
-
-      (raw.match(/15S-[A-Z0-9][A-Z0-9_-]*/gi) || []).forEach(addId);
-
-      const sceneIds = [];
-      const sceneRe = /(?:^|\n)\s*(S\d{2,4})(?=\||\s|$)/gim;
-      let sceneMatch;
-      while ((sceneMatch = sceneRe.exec(raw)) !== null) {
-        const id = sceneMatch[1].toUpperCase();
-        if (!sceneIds.includes(id)) sceneIds.push(id);
-        addId(id);
-      }
-      (raw.match(/(?:^|\|)(S\d{2,4})(?=\||\n|$)/gim) || []).forEach(token => {
-        const m = token.match(/S\d{2,4}/i);
-        if (m) {
-          const id = m[0].toUpperCase();
-          if (!sceneIds.includes(id)) sceneIds.push(id);
-          addId(id);
-        }
-      });
-
-      const headerMatch = raw.match(/^\s*1-5S\|([^|\n]+)/i);
-      if (headerMatch) addId(headerMatch[1]);
-
-      let durationMinutes = null;
-      const explicitMinutes = raw.match(/(?:DUR|DURATION|MIN|MINUTES)\s*[:=]\s*(\d{1,3}(?:\.\d+)?)/i);
-      if (explicitMinutes) durationMinutes = Number(explicitMinutes[1]);
-      else {
-        const compactSeconds = raw.match(/(?:^|\|)\s*\d+\s*x\s*\d+(?:\.\d+)?s\s*=\s*(\d+(?:\.\d+)?)s(?=\||\n|$)/i);
-        if (compactSeconds) durationMinutes = Number(compactSeconds[1]) / 60;
-      }
-
-      if (valid1to5 && !collected.length) addId(packageId || '1-5S-MANIFEST');
-
-      const entities = collectManifestEntities(raw, packageId || collected[0] || null, sceneIds);
-
-      return {
+      const result = {
         raw,
-        ids: collected,
-        packageId: packageId || collected[0] || null,
-        durationMinutes,
-        valid1to5,
-        sceneIds,
-        entities
+        mk: null,
+        manifestId: null,
+        checksum: null,
+        compact: false,
+        legacyDescriptive: false,
+        parseError: null
       };
+      if (!raw) return result;
+
+      try {
+        const obj = JSON.parse(raw);
+        if (obj && typeof obj === 'object') {
+          result.mk = String(obj.mk || '').trim().toUpperCase() || null;
+          result.manifestId = String(obj.manifest_id || '').trim() || null;
+          result.checksum = String(obj.checksum || '').trim() || null;
+          result.compact = Boolean(result.mk && result.manifestId && result.checksum);
+          return result;
+        }
+      } catch (_) {}
+
+      const mk = raw.match(/(?:^|\|)\s*(MK1)\s*(?=\||$)/i);
+      const manifest = raw.match(/(?:^|\|)\s*(?:MANIFEST_ID|MANIFEST)\s*:\s*([^|\n]+)/i);
+      const checksum = raw.match(/(?:^|\|)\s*CHECKSUM\s*:\s*([^|\n]+)/i);
+      if (mk || manifest || checksum) {
+        result.mk = mk ? mk[1].toUpperCase() : null;
+        result.manifestId = manifest ? manifest[1].trim() : null;
+        result.checksum = checksum ? checksum[1].trim() : null;
+        result.compact = Boolean(result.mk && result.manifestId && result.checksum);
+        if (!result.compact) result.parseError = 'Compact Master-Key QR is missing mk, manifest_id, or checksum.';
+        return result;
+      }
+
+      if (/^\s*1-5S(?:\||\n|$)/i.test(raw) || /(?:^|[|\n])PACKAGE\s*:/i.test(raw) || /\bS0?1\|/i.test(raw)) {
+        result.legacyDescriptive = true;
+        result.parseError = 'Descriptive scene manifest detected. Production QR must contain only MK1 authority + registered manifest ID + checksum.';
+        return result;
+      }
+
+      result.parseError = 'Unrecognized 1-5 Studios Master-Key QR format.';
+      return result;
+    }
+
+    function checksumLooksRegistered(value) {
+      const v = String(value || '').trim();
+      return v.length >= 8 && /^[A-Za-z0-9._:-]+$/.test(v);
+    }
+
+    function getReadiness(parsed, manifestRecord) {
+      const registered = Boolean(manifestRecord);
+      const gates = {
+        SCENE_LOCKED: registered && manifestRecord.scene_locked === true,
+        REQUIRED_TAGS_RESOLVED: registered && manifestRecord.required_tags_resolved === true,
+        CANONICAL_PACKAGES_FOUND: registered && manifestRecord.canonical_packages_found === true,
+        RELATIONSHIPS_VALID: registered && manifestRecord.relationships_valid === true,
+        MANIFEST_REGISTERED: registered,
+        CHECKSUM_VERIFIED: registered && manifestRecord.checksum_verified === true && manifestRecord.checksum === parsed.checksum
+      };
+      const passed = Object.values(gates).filter(Boolean).length;
+      return { gates, passed, ready: passed === 6 };
     }
 
     function inspectQr(rawValue, source = 'scanner') {
-      const parsed = parseScenePackageQr(rawValue);
+      const parsed = parseMasterKeyQr(rawValue);
       if (!parsed.raw) return;
 
-      const registry = state.qrRegistry || (state.qrRegistry = []);
-      const existing = parsed.packageId
-        ? registry.find(item => item.packageId === parsed.packageId)
-        : null;
+      const librarian = state.librarianManifests || (state.librarianManifests = {});
+      const manifestRecord = parsed.manifestId ? librarian[parsed.manifestId] : null;
+      const readiness = getReadiness(parsed, manifestRecord);
 
-      state.lastScan = {
-        ...parsed,
-        source,
-        time: new Date().toISOString()
-      };
+      state.lastScan = { ...parsed, source, readiness, time: new Date().toISOString() };
 
       refs.qrRawValue.textContent = parsed.raw;
-      refs.qrRegistryCount.textContent = String(parsed.ids.length);
+      refs.qrRegistryCount.textContent = String(readiness.passed);
+      refs.qrSystemId.textContent = parsed.manifestId || '—';
 
-      if (!parsed.valid1to5 && !parsed.ids.length) {
-        refs.qrResultTitle.textContent = 'QR decoded, but it is not a 1-5 Studios package';
-        refs.qrIdentityState.textContent = 'Unrecognized package format';
-        refs.qrGateAction.textContent = 'Hold — expected a 1-5S package manifest';
-        refs.qrSystemId.textContent = '—';
+      if (parsed.legacyDescriptive) {
+        refs.qrResultTitle.textContent = 'Descriptive QR detected — not production ready';
+        refs.qrIdentityState.textContent = '0 / 6 readiness gates';
+        refs.qrGateAction.textContent = 'HARD STOP — register the full Librarian manifest first';
         refs.registerQrBtn.disabled = true;
-        setPill(refs.qrStatusPill, 'Invalid package QR', 'blocked');
+        refs.registerQrBtn.textContent = 'Blocked';
+        setPill(refs.qrStatusPill, 'Registration required', 'blocked');
+        addLog('Production QR blocked', 'A descriptive scene-package QR was decoded. It cannot be treated as Permanent ID tags. The AI must resolve identities, register the complete Librarian manifest, then create a compact MK1 QR.');
+        saveState();
         return;
       }
 
-      refs.qrSystemId.textContent = parsed.packageId || parsed.ids[0];
-
-      if (existing) {
-        refs.qrResultTitle.textContent = 'Known scene package recognized';
-        refs.qrIdentityState.textContent = `${existing.ids.length} stored ID tag${existing.ids.length === 1 ? '' : 's'}`;
-        refs.qrGateAction.textContent = 'Reuse existing package — no duplicate package identity';
-        refs.registerQrBtn.disabled = false;
-        refs.registerQrBtn.textContent = 'Load existing package';
-        setPill(refs.qrStatusPill, 'Package recognized', 'approved');
-        addLog('Scene-package QR recognized', `${existing.packageId} matched the local package registry.`);
-      } else {
-        refs.qrResultTitle.textContent = parsed.valid1to5 ? '1-5 Studios scene-package manifest recognized' : (parsed.ids.length === 1 ? 'Scene/package ID recognized' : 'Scene-package manifest recognized');
-        refs.qrIdentityState.textContent = `${parsed.entities.length} qualifying identities inventoried · ${parsed.sceneIds?.length || 0} scenes · ID Department pending · build ID-DEPT-WIRED-5`;
-        refs.qrGateAction.textContent = parsed.durationMinutes
-          ? `Ready for ID Department · ${formatPackageDuration(parsed.durationMinutes)} package`
-          : 'Ready for ID Department to reuse or issue permanent IDs';
-        refs.registerQrBtn.disabled = false;
-        refs.registerQrBtn.textContent = 'Load scene package';
-        setPill(refs.qrStatusPill, 'IDs ready', 'active-state');
+      if (!parsed.compact || parsed.mk !== 'MK1') {
+        refs.qrResultTitle.textContent = 'Invalid Master-Key QR';
+        refs.qrIdentityState.textContent = `${readiness.passed} / 6 readiness gates`;
+        refs.qrGateAction.textContent = parsed.parseError || 'HARD STOP — MK1 payload incomplete';
+        refs.registerQrBtn.disabled = true;
+        refs.registerQrBtn.textContent = 'Blocked';
+        setPill(refs.qrStatusPill, 'Invalid QR', 'blocked');
+        saveState();
+        return;
       }
 
+      if (!checksumLooksRegistered(parsed.checksum)) {
+        refs.qrResultTitle.textContent = 'Checksum format rejected';
+        refs.qrIdentityState.textContent = `${readiness.passed} / 6 readiness gates`;
+        refs.qrGateAction.textContent = 'HARD STOP — checksum cannot be verified';
+        refs.registerQrBtn.disabled = true;
+        refs.registerQrBtn.textContent = 'Blocked';
+        setPill(refs.qrStatusPill, 'Checksum blocked', 'blocked');
+        saveState();
+        return;
+      }
+
+      if (!manifestRecord) {
+        refs.qrResultTitle.textContent = 'Master-Key QR recognized';
+        refs.qrIdentityState.textContent = `${readiness.passed} / 6 readiness gates`;
+        refs.qrGateAction.textContent = 'HARD STOP — registered Librarian manifest not available to this browser prototype';
+        refs.registerQrBtn.disabled = true;
+        refs.registerQrBtn.textContent = 'Librarian connection required';
+        setPill(refs.qrStatusPill, 'Manifest lookup required', 'active-state');
+        addLog('Master-Key QR recognized', `${parsed.manifestId} has MK1 authority and a checksum reference, but the authoritative Librarian manifest must be fetched before 1-5 Studios can proceed.`);
+        saveState();
+        return;
+      }
+
+      if (!readiness.ready) {
+        const failed = Object.entries(readiness.gates).filter(([,v]) => !v).map(([k]) => k).join(', ');
+        refs.qrResultTitle.textContent = 'Registered manifest found — readiness gate blocked';
+        refs.qrIdentityState.textContent = `${readiness.passed} / 6 readiness gates`;
+        refs.qrGateAction.textContent = `HARD STOP — ${failed}`;
+        refs.registerQrBtn.disabled = true;
+        refs.registerQrBtn.textContent = 'Blocked by readiness gate';
+        setPill(refs.qrStatusPill, 'Gate blocked', 'blocked');
+        saveState();
+        return;
+      }
+
+      refs.qrResultTitle.textContent = 'Production-ready Master-Key scene package';
+      refs.qrIdentityState.textContent = '6 / 6 readiness gates';
+      refs.qrGateAction.textContent = 'Resolve references / temporarily load approved packages';
+      refs.registerQrBtn.disabled = false;
+      refs.registerQrBtn.textContent = 'Load approved manifest';
+      setPill(refs.qrStatusPill, 'QR_READY', 'approved');
+      addLog('QR readiness verified', `${parsed.manifestId} passed all six Master-Key readiness gates.`);
       renderQrRegistry();
       saveState();
     }
 
     function registerLastScan() {
       const scan = state.lastScan;
-      if (!scan || !scan.raw || !scan.valid1to5) return;
+      if (!scan || !scan.compact || scan.mk !== 'MK1' || !scan.readiness?.ready) return;
+
+      const librarian = state.librarianManifests || {};
+      const manifest = librarian[scan.manifestId];
+      if (!manifest) return;
 
       const registry = state.qrRegistry || (state.qrRegistry = []);
-      const packageId = scan.packageId || scan.ids?.[0] || '1-5S-MANIFEST';
-      const existingPackage = registry.find(item => item.packageId === packageId);
-
-      // This is the wired ID-issuing department. Every qualifying identity is
-      // checked against one persistent local registry. Exact matches reuse their
-      // existing ID; only missing identities receive a newly issued unique ID.
-      const resolution = issueOrReuseIdentities(scan.entities || []);
-      const resolvedIds = resolution.resolved.map(x => x.id);
-
-      if (!existingPackage) {
+      const existing = registry.find(item => item.manifestId === scan.manifestId);
+      if (!existing) {
         registry.unshift({
-          packageId,
-          ids: resolvedIds,
-          references: [...(scan.ids || [])],
-          durationMinutes: scan.durationMinutes,
-          entityCount: resolution.total,
+          manifestId: scan.manifestId,
+          checksum: scan.checksum,
+          packageId: manifest.package_id || scan.manifestId,
+          requiredIdCount: Array.isArray(manifest.required_ids) ? manifest.required_ids.length : 0,
           firstSeen: new Date().toISOString()
         });
-      } else {
-        existingPackage.ids = [...new Set([...(existingPackage.ids || []), ...resolvedIds])];
-        existingPackage.references = [...new Set([...(existingPackage.references || []), ...(scan.ids || [])])];
-        existingPackage.entityCount = resolution.total;
-        existingPackage.durationMinutes = scan.durationMinutes;
       }
 
-      state.lastScan.resolution = resolution;
-
-      const detail = `${resolution.total} qualifying identities inspected · ${resolution.reused} existing ID${resolution.reused === 1 ? '' : 's'} reused · ${resolution.issued} new ID${resolution.issued === 1 ? '' : 's'} issued · 0 duplicate IDs.`;
-      addLog('ID Department resolution complete', detail);
-      if (existingPackage) {
-        addLog('Existing scene package reused', `${packageId} was already registered. Package identity was reused; no duplicate package ID was created.`);
-      } else {
-        addLog('Scene package registered', `${packageId} passed through the ID Department and is ready for the 1-5 Studios workflow.`);
-      }
-
-      refs.qrResultTitle.textContent = existingPackage ? 'Existing package loaded + IDs verified' : 'Scene package loaded + IDs issued';
-      refs.qrIdentityState.textContent = detail;
-      refs.qrGateAction.textContent = 'ID Department complete / package ready for 1-5 Studios workflow';
-      refs.qrSystemId.textContent = packageId;
-      refs.qrRegistryCount.textContent = String(resolution.total);
+      refs.qrResultTitle.textContent = existing ? 'Approved manifest reused' : 'Approved manifest loaded';
+      refs.qrIdentityState.textContent = '6 / 6 readiness gates';
+      refs.qrGateAction.textContent = 'Approved canonical packages temporarily loaded — ready for 1-5 Studios workflow';
+      refs.qrSystemId.textContent = scan.manifestId;
+      refs.qrRegistryCount.textContent = '6';
       refs.registerQrBtn.disabled = true;
-      refs.registerQrBtn.textContent = 'Package loaded';
-      setPill(refs.qrStatusPill, 'IDs resolved', 'approved');
+      refs.registerQrBtn.textContent = 'Manifest loaded';
+      setPill(refs.qrStatusPill, 'Approved manifest loaded', 'approved');
+
+      addLog(existing ? 'Existing approved manifest reused' : 'Approved manifest loaded',
+        `${scan.manifestId} was resolved through the Librarian. 1-5 Studios did not issue or invent any Permanent IDs.`);
+
       renderQrRegistry();
       saveState();
-      toast(`${packageId}: ${resolution.reused} reused, ${resolution.issued} issued, 0 duplicates.`);
+      toast(`${scan.manifestId}: Master-Key manifest loaded. No IDs issued by 1-5 Studios.`);
     }
 
     function renderQrRegistry() {
       const registry = state.qrRegistry || [];
       if (!state.lastScan) refs.qrRegistryCount.textContent = '0';
       if (!registry.length) {
-        refs.qrRegistryList.innerHTML = '<div class="muted">No scene packages scanned yet.</div>';
+        refs.qrRegistryList.innerHTML = '<div class="muted">No approved Librarian manifests loaded yet.</div>';
         return;
       }
       refs.qrRegistryList.innerHTML = registry.slice(0,6).map(item => `
         <div class="registry-item">
-          <strong class="mono">${item.packageId}</strong>
-          <div class="muted">${item.ids.length} resolved ID tag${item.ids.length === 1 ? '' : 's'} · ${formatPackageDuration(item.durationMinutes)} package · first scanned ${new Date(item.firstSeen).toLocaleString()}</div>
+          <strong class="mono">${item.manifestId}</strong>
+          <div class="muted">${item.requiredIdCount || 0} approved Permanent-ID reference${item.requiredIdCount === 1 ? '' : 's'} · checksum verified by Librarian · first loaded ${new Date(item.firstSeen).toLocaleString()}</div>
         </div>
       `).join('');
     }
@@ -2338,5 +2276,6 @@
     setupModalChoices();
     renderAll();
   </script>
+<div style="display:none" id="buildMarker">MASTER-KEY-PROTOCOL-6</div>
 </body>
 </html>

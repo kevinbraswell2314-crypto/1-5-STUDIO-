@@ -1,12 +1,18 @@
-# 1-5 Studios — ID Department Wired
+# 1-5 Studios — Master-Key / Librarian Protocol Upgrade
 
-This build keeps the front page simple and wires the QR scene-package scanner into a persistent browser-side ID Department prototype.
+Corrects the prior browser-side ID issuance behavior.
 
-Flow:
-QR -> manifest inventory -> registry lookup -> reuse existing ID or issue missing unique ID -> duplicate check -> package ready.
+Implemented rules:
+- Scene Roll and Animator do NOT issue Permanent IDs.
+- Exact match -> reuse existing Permanent ID + canonical package.
+- Multiple approved matches -> stop for human selection.
+- No match -> send only the unresolved element to Librarian Registration.
+- Controlled registration path is displayed in the UI.
+- Production QR contains only MK1 authority + registered manifest ID + checksum.
+- Descriptive/full scene-manifest QRs HARD STOP as non-production-ready.
+- Six readiness gates are enforced in the interface.
 
-The parser inventories package, scenes, named characters, CH additions, and explicit EL inventory items. Quantity tokens such as SPACE-HELMETx6 become six individually addressable identities. Re-scanning the same package reuses the same IDs instead of issuing duplicates.
+Static-host limitation:
+GitHub Pages does not provide the authoritative Librarian Registry/backend. This build refuses to fake manifest lookup or checksum verification. A real Librarian backend connection is required for production.
 
-For QTDC-IMAGINATION-40S the UI now reports the real duration as 40 sec rather than 0.666666... minutes.
-
-Important: this is still a static GitHub Pages prototype. The registry is persisted in that browser's localStorage. A production-wide registry shared across devices will require a backend/database.
+Build marker: MASTER-KEY-PROTOCOL-6
