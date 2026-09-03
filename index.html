@@ -1043,6 +1043,7 @@
         <div class="panel-header">
           <div>
             <div class="panel-title">1-5 Studios / Scene Package QR Scanner</div>
+            <div class="panel-note"><strong>Build:</strong> LIBRARIAN-CONNECTED-V10 · Live backend manifest verification + honest 6-gate readiness.</div>
             <div class="panel-note">This scanner is for 1-5 Studios only. Production QR codes carry only MK1 authority, a registered Librarian Scene Manifest ID, and its checksum — never the full scene description or invented labels. 1-5 Studios resolves the registered manifest, temporarily loads approved canonical packages, generates, validates, saves continuity, and unloads heavy package bodies.</div>
           </div>
           <span class="status-pill draft" id="qrStatusPill">Scanner idle</span>
@@ -1066,9 +1067,14 @@
                 <input class="file-scan-input" id="qrImageInput" type="file" accept="image/*" capture="environment" />
               </div>
               <div class="manual-scan-row">
-                <input id="manualQrInput" placeholder='Paste {"mk":"MK1","manifest_id":"...","checksum":"..."}' autocomplete="off" />
-                <button class="btn btn-secondary" type="button" id="manualScanBtn">Read Master-Key QR</button>
+                <input id="manualQrInput" placeholder='Paste MK1|manifest-id|checksum' autocomplete="off" />
+                <button class="btn btn-secondary" type="button" id="manualScanBtn">Verify Master-Key QR</button>
               </div>
+              <div class="manual-scan-row" style="margin-top:10px;">
+                <input id="librarianApiUrl" value="http://127.0.0.1:8000" placeholder="Librarian API URL" autocomplete="off" />
+                <button class="btn btn-secondary" type="button" id="testLibrarianBtn">Test Librarian</button>
+              </div>
+              <div class="panel-note" id="librarianConnectionNote">Local test default: http://127.0.0.1:8000. GitHub Pages production requires an HTTPS Librarian API URL.</div>
             </div>
             <div class="qr-result">
               <div class="eyebrow">Package result</div>
@@ -1263,7 +1269,7 @@
   <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
   <script src="https://unpkg.com/@zxing/library@0.23.0"></script>
   <script>
-    const STORAGE_KEY = '15-studios-core-v1-safety-net-qr-fix';
+    const STORAGE_KEY = '15-studios-qr-hotfix-9';
     const stageKeys = ['direction', 'lock', 'resolve', 'produce', 'authorize'];
     const stageLabels = [
       { title: 'Direction set', note: 'Creative intent captured' },
@@ -1400,6 +1406,9 @@
       qrImageInput: document.getElementById('qrImageInput'),
       manualQrInput: document.getElementById('manualQrInput'),
       manualScanBtn: document.getElementById('manualScanBtn'),
+      librarianApiUrl: document.getElementById('librarianApiUrl'),
+      testLibrarianBtn: document.getElementById('testLibrarianBtn'),
+      librarianConnectionNote: document.getElementById('librarianConnectionNote'),
       qrResultTitle: document.getElementById('qrResultTitle'),
       qrRawValue: document.getElementById('qrRawValue'),
       qrIdentityState: document.getElementById('qrIdentityState'),
@@ -1667,6 +1676,16 @@
         }
       } catch (_) {}
 
+      const compactParts = raw.split('|').map(part => part.trim());
+      if (compactParts.length === 3 && compactParts[0].toUpperCase() === 'MK1') {
+        result.mk = 'MK1';
+        result.manifestId = compactParts[1] || null;
+        result.checksum = compactParts[2] || null;
+        result.compact = Boolean(result.manifestId && result.checksum);
+        if (!result.compact) result.parseError = 'Compact Master-Key QR is missing manifest ID or checksum.';
+        return result;
+      }
+
       const mk = raw.match(/(?:^|\|)\s*(MK1)\s*(?=\||$)/i);
       const manifest = raw.match(/(?:^|\|)\s*(?:MANIFEST_ID|MANIFEST)\s*:\s*([^|\n]+)/i);
       const checksum = raw.match(/(?:^|\|)\s*CHECKSUM\s*:\s*([^|\n]+)/i);
@@ -1710,18 +1729,56 @@
       return { gates, passed, ready: passed === 6 };
     }
 
-    function inspectQr(rawValue, source = 'scanner') {
+    function getLibrarianApiUrl() {
+      const entered = (refs.librarianApiUrl?.value || '').trim().replace(/\/$/, '');
+      return entered || 'http://127.0.0.1:8000';
+    }
+
+    async function testLibrarianConnection() {
+      const apiUrl = getLibrarianApiUrl();
+      localStorage.setItem('15s-librarian-api-url', apiUrl);
+      refs.librarianConnectionNote.textContent = 'Testing Librarian connection…';
+      try {
+        const response = await fetch(`${apiUrl}/health`, { method: 'GET', cache: 'no-store' });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const body = await response.json();
+        if (body.status !== 'ok' || body.database !== true) throw new Error('Health response did not confirm database readiness');
+        refs.librarianConnectionNote.textContent = `Librarian connected · database healthy · ${apiUrl}`;
+        setPill(refs.qrStatusPill, 'Librarian connected', 'approved');
+        toast('Librarian backend connected.');
+        return true;
+      } catch (error) {
+        refs.librarianConnectionNote.textContent = `Librarian not reachable at ${apiUrl}. ${error.message}`;
+        setPill(refs.qrStatusPill, 'Librarian offline', 'blocked');
+        return false;
+      }
+    }
+
+    async function verifyManifestWithLibrarian(parsed) {
+      const apiUrl = getLibrarianApiUrl();
+      localStorage.setItem('15s-librarian-api-url', apiUrl);
+      const response = await fetch(`${apiUrl}/api/v1/manifests/verify`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mk: parsed.mk, manifest_id: parsed.manifestId, checksum: parsed.checksum })
+      });
+      let body = {};
+      try { body = await response.json(); } catch (_) {}
+      if (!response.ok) {
+        const detail = typeof body.detail === 'string' ? body.detail : `HTTP ${response.status}`;
+        throw new Error(detail);
+      }
+      return body;
+    }
+
+    async function inspectQr(rawValue, source = 'scanner') {
       const parsed = parseMasterKeyQr(rawValue);
       if (!parsed.raw) return;
 
-      const librarian = state.librarianManifests || (state.librarianManifests = {});
-      const manifestRecord = parsed.manifestId ? librarian[parsed.manifestId] : null;
-      const readiness = getReadiness(parsed, manifestRecord);
-
+      let readiness = getReadiness(parsed, null);
       state.lastScan = { ...parsed, source, readiness, time: new Date().toISOString() };
-
       refs.qrRawValue.textContent = parsed.raw;
-      refs.qrRegistryCount.textContent = String(readiness.passed);
+      refs.qrRegistryCount.textContent = '0';
       refs.qrSystemId.textContent = parsed.manifestId || '—';
 
       if (parsed.legacyDescriptive) {
@@ -1740,7 +1797,7 @@
 
       if (!parsed.compact || parsed.mk !== 'MK1') {
         refs.qrResultTitle.textContent = 'Invalid Master-Key QR';
-        refs.qrIdentityState.textContent = `${readiness.passed} / 6 readiness gates`;
+        refs.qrIdentityState.textContent = '0 / 6 readiness gates';
         refs.qrGateAction.textContent = parsed.parseError || 'HARD STOP — MK1 payload incomplete';
         refs.registerQrBtn.disabled = true;
         refs.registerQrBtn.textContent = 'Blocked';
@@ -1751,7 +1808,7 @@
 
       if (!checksumLooksRegistered(parsed.checksum)) {
         refs.qrResultTitle.textContent = 'Checksum format rejected';
-        refs.qrIdentityState.textContent = `${readiness.passed} / 6 readiness gates`;
+        refs.qrIdentityState.textContent = '0 / 6 readiness gates';
         refs.qrGateAction.textContent = 'HARD STOP — checksum cannot be verified';
         refs.registerQrBtn.disabled = true;
         refs.registerQrBtn.textContent = 'Blocked';
@@ -1760,26 +1817,54 @@
         return;
       }
 
-      if (!manifestRecord) {
-        refs.qrResultTitle.textContent = 'Master-Key QR recognized';
-        refs.qrIdentityState.textContent = `${readiness.passed} / 6 readiness gates`;
-        refs.qrGateAction.textContent = 'AUTHORITATIVE STOP — working preview may continue with TMP references; final release requires the Librarian backend';
+      refs.qrResultTitle.textContent = 'Master-Key QR recognized';
+      refs.qrIdentityState.textContent = 'Checking Librarian…';
+      refs.qrGateAction.textContent = 'Verifying registered manifest and readiness evidence';
+      refs.registerQrBtn.disabled = true;
+      refs.registerQrBtn.textContent = 'Verifying…';
+      setPill(refs.qrStatusPill, 'Librarian verification', 'waiting');
+
+      let verified;
+      try {
+        verified = await verifyManifestWithLibrarian(parsed);
+      } catch (error) {
+        refs.qrResultTitle.textContent = 'Master-Key QR recognized — Librarian unavailable';
+        refs.qrIdentityState.textContent = '0 / 6 readiness gates';
+        refs.qrGateAction.textContent = `AUTHORITATIVE STOP — ${error.message}`;
         refs.registerQrBtn.disabled = true;
         refs.registerQrBtn.textContent = 'Librarian connection required';
         setPill(refs.qrStatusPill, 'Manifest lookup required', 'active-state');
-        addLog('Master-Key QR recognized', `${parsed.manifestId} has MK1 authority and a checksum reference. This static prototype may continue only in working/preview mode with clearly marked TMP references; authoritative release requires the real Librarian manifest lookup.`);
+        addLog('Master-Key QR recognized', `${parsed.manifestId} was parsed, but authoritative readiness could not be proven because the Librarian API was unavailable.`);
         saveState();
         return;
       }
 
+      readiness = { gates: verified.gates || {}, passed: Number(verified.passed || 0), ready: verified.ready === true };
+      const librarian = state.librarianManifests || (state.librarianManifests = {});
+      librarian[parsed.manifestId] = {
+        manifest_id: parsed.manifestId,
+        package_id: verified.package_code || parsed.manifestId,
+        checksum: parsed.checksum,
+        checksum_verified: Boolean(verified.checksum_verified),
+        scene_locked: Boolean(readiness.gates.SCENE_LOCKED),
+        required_tags_resolved: Boolean(readiness.gates.REQUIRED_TAGS_RESOLVED),
+        canonical_packages_found: Boolean(readiness.gates.CANONICAL_PACKAGES_FOUND),
+        relationships_valid: Boolean(readiness.gates.RELATIONSHIPS_VALID),
+        required_reference_count: Number(verified.required_reference_count || 0),
+        manifest_state: verified.manifest_state || 'UNKNOWN'
+      };
+      state.lastScan = { ...parsed, source, readiness, verified, time: new Date().toISOString() };
+      refs.qrRegistryCount.textContent = String(readiness.passed);
+      refs.qrIdentityState.textContent = `${readiness.passed} / 6 readiness gates`;
+
       if (!readiness.ready) {
         const failed = Object.entries(readiness.gates).filter(([,v]) => !v).map(([k]) => k).join(', ');
-        refs.qrResultTitle.textContent = 'Registered manifest found — readiness gate blocked';
-        refs.qrIdentityState.textContent = `${readiness.passed} / 6 readiness gates`;
-        refs.qrGateAction.textContent = `HARD STOP — ${failed}`;
+        refs.qrResultTitle.textContent = 'Registered manifest verified — readiness gate blocked';
+        refs.qrGateAction.textContent = `HARD STOP — ${failed || 'readiness evidence incomplete'}`;
         refs.registerQrBtn.disabled = true;
         refs.registerQrBtn.textContent = 'Blocked by readiness gate';
         setPill(refs.qrStatusPill, 'Gate blocked', 'blocked');
+        addLog('Manifest verified', `${parsed.manifestId} is registered and was checked by the Librarian. ${readiness.passed}/6 readiness gates currently pass.`);
         saveState();
         return;
       }
@@ -1790,7 +1875,7 @@
       refs.registerQrBtn.disabled = false;
       refs.registerQrBtn.textContent = 'Load approved manifest';
       setPill(refs.qrStatusPill, 'QR_READY', 'approved');
-      addLog('QR readiness verified', `${parsed.manifestId} passed all six Master-Key readiness gates.`);
+      addLog('QR readiness verified', `${parsed.manifestId} passed all six Master-Key readiness gates through the Librarian backend.`);
       renderQrRegistry();
       saveState();
     }
@@ -1855,7 +1940,7 @@
           manifestId: scan.manifestId,
           checksum: scan.checksum,
           packageId: manifest.package_id || scan.manifestId,
-          permanentReferenceCount: Array.isArray(manifest.required_ids) ? manifest.required_ids.length : 0,
+          permanentReferenceCount: Number(manifest.required_reference_count || (Array.isArray(manifest.required_ids) ? manifest.required_ids.length : 0)),
           checksumStatus: 'VERIFIED BY LIBRARIAN',
           finalReleaseEligible: true,
           firstSeen: new Date().toISOString()
@@ -2330,6 +2415,12 @@
     refs.manualQrInput.addEventListener('keydown', (event) => {
       if (event.key === 'Enter') { event.preventDefault(); inspectQr(refs.manualQrInput.value, 'manual'); }
     });
+    const savedLibrarianApiUrl = localStorage.getItem('15s-librarian-api-url');
+    if (savedLibrarianApiUrl) refs.librarianApiUrl.value = savedLibrarianApiUrl;
+    refs.testLibrarianBtn.addEventListener('click', testLibrarianConnection);
+    refs.librarianApiUrl.addEventListener('change', () => {
+      localStorage.setItem('15s-librarian-api-url', getLibrarianApiUrl());
+    });
     refs.qrImageInput.addEventListener('change', (event) => scanQrImage(event.target.files?.[0]));
     refs.registerQrBtn.addEventListener('click', registerLastScan);
     refs.clearQrBtn.addEventListener('click', clearQrResult);
@@ -2365,6 +2456,6 @@
     setupModalChoices();
     renderAll();
   </script>
-<div style="display:none" id="buildMarker">CORE-V1-SAFETY-NET-QR-FIX-8</div>
+<div style="display:none" id="buildMarker">LIBRARIAN-CONNECTED-V10</div>
 </body>
 </html>
