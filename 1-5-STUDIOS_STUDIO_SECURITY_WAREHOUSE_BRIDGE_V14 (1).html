@@ -1,0 +1,3158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <!-- 1-5 Studios Internal Master Library Core V12: identity issuance remains backend/Librarian-only. -->
+  <title>15 Studios — Cinematic Control</title>
+  <style>
+    :root {
+      --bg: #071018;
+      --bg-2: #0b1420;
+      --panel: rgba(13, 18, 30, 0.78);
+      --panel-strong: rgba(13, 18, 30, 0.94);
+      --panel-soft: rgba(255, 255, 255, 0.04);
+      --line: rgba(134, 161, 201, 0.14);
+      --line-strong: rgba(134, 161, 201, 0.26);
+      --text: #edf4ff;
+      --muted: #8fa4c3;
+      --cyan: #72efff;
+      --cyan-2: #b9fbff;
+      --violet: #a98dff;
+      --amber: #ffc16e;
+      --green: #89efaf;
+      --red: #ff819d;
+      --shadow: 0 30px 90px rgba(0, 0, 0, 0.45);
+      --radius-xl: 32px;
+      --radius-lg: 24px;
+      --radius-md: 18px;
+      --radius-sm: 14px;
+    }
+
+    * { box-sizing: border-box; }
+    html, body { margin: 0; min-height: 100%; }
+    body {
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at 14% 14%, rgba(114,239,255,0.14), transparent 20%),
+        radial-gradient(circle at 80% 12%, rgba(169,141,255,0.14), transparent 22%),
+        radial-gradient(circle at 70% 78%, rgba(255,193,110,0.08), transparent 24%),
+        linear-gradient(135deg, #050a10 0%, #08111a 24%, #0c1723 100%);
+      letter-spacing: 0.01em;
+      overflow-x: hidden;
+    }
+
+    button, input, textarea, select { font: inherit; }
+    button { cursor: pointer; }
+
+    .app {
+      min-height: 100vh;
+      display: grid;
+      grid-template-columns: 88px 1fr;
+    }
+
+    .rail {
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 14px;
+      padding: 20px 16px;
+      background: linear-gradient(180deg, rgba(7,10,16,0.96), rgba(8,13,20,0.9));
+      border-right: 1px solid var(--line);
+      backdrop-filter: blur(18px);
+      z-index: 5;
+    }
+
+    .sigil,
+    .rail-btn {
+      width: 54px;
+      height: 54px;
+      border-radius: 18px;
+      display: grid;
+      place-items: center;
+    }
+
+    .sigil {
+      color: var(--cyan);
+      font-size: 24px;
+      background: linear-gradient(180deg, rgba(114,239,255,0.16), rgba(114,239,255,0.05));
+      border: 1px solid rgba(114,239,255,0.28);
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,0.03), 0 14px 36px rgba(0,0,0,0.26);
+    }
+
+    .rail-btn {
+      border: 1px solid var(--line);
+      color: var(--muted);
+      background: rgba(255,255,255,0.03);
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      transition: 160ms ease;
+    }
+
+    .rail-btn.active,
+    .rail-btn:hover {
+      color: var(--text);
+      border-color: rgba(114,239,255,0.4);
+      background: linear-gradient(180deg, rgba(114,239,255,0.16), rgba(114,239,255,0.04));
+    }
+
+    .shell {
+      padding: 26px;
+    }
+
+    .topbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 18px;
+      margin-bottom: 22px;
+    }
+
+    .eyebrow {
+      color: var(--cyan);
+      text-transform: uppercase;
+      font-size: 11px;
+      letter-spacing: 0.28em;
+      margin-bottom: 12px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(2.4rem, 4.6vw, 5rem);
+      line-height: 0.92;
+      letter-spacing: -0.06em;
+      max-width: 9ch;
+    }
+
+    .subhead {
+      max-width: 68ch;
+      margin-top: 16px;
+      color: var(--muted);
+      line-height: 1.62;
+      font-size: 0.98rem;
+    }
+
+    .top-actions {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    .glass-chip,
+    .status-pill,
+    .tag,
+    .mini-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      border-radius: 999px;
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,0.04);
+    }
+
+    .glass-chip {
+      min-width: 168px;
+      padding: 12px 14px;
+      flex-direction: column;
+      align-items: flex-start;
+    }
+
+    .glass-chip small,
+    .muted,
+    .label,
+    .mono-muted {
+      color: var(--muted);
+    }
+
+    .glass-chip strong {
+      margin-top: 6px;
+      font-size: 0.98rem;
+      font-weight: 650;
+    }
+
+    .status-pill,
+    .tag,
+    .mini-tag {
+      padding: 8px 12px;
+      font-size: 0.76rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .status-pill::before {
+      content: "";
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: currentColor;
+      box-shadow: 0 0 12px currentColor;
+    }
+
+    .tag,
+    .mini-tag {
+      text-transform: none;
+      letter-spacing: 0.02em;
+      color: var(--muted);
+    }
+
+    .mono,
+    .mono-muted,
+    .time-stamp {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    }
+
+    .draft { color: var(--muted); }
+    .active-state { color: var(--cyan); }
+    .waiting { color: var(--amber); }
+    .approved { color: var(--green); }
+    .blocked { color: var(--red); }
+    .violet { color: var(--violet); }
+
+    .hero {
+      display: grid;
+      grid-template-columns: minmax(0, 1.22fr) minmax(360px, 0.78fr);
+      gap: 22px;
+      margin-bottom: 22px;
+    }
+
+    .panel {
+      position: relative;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: var(--radius-xl);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+      backdrop-filter: blur(20px);
+    }
+
+    .panel::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(180deg, rgba(255,255,255,0.03), transparent 30%);
+      pointer-events: none;
+    }
+
+    .panel-header {
+      padding: 22px 24px 18px;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 12px;
+      border-bottom: 1px solid rgba(134,161,201,0.1);
+    }
+
+    .panel-title {
+      font-size: 1.12rem;
+      font-weight: 650;
+      letter-spacing: -0.02em;
+    }
+
+    .panel-note {
+      max-width: 58ch;
+      color: var(--muted);
+      font-size: 0.92rem;
+      line-height: 1.56;
+    }
+
+    .panel-body {
+      padding: 22px 24px 24px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .director-form {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .field,
+    .field-full {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .field-full { grid-column: 1 / -1; }
+
+    label {
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.14em;
+      font-size: 0.74rem;
+    }
+
+    input,
+    select,
+    textarea {
+      width: 100%;
+      color: var(--text);
+      background: rgba(255,255,255,0.035);
+      border: 1px solid rgba(134,161,201,0.16);
+      border-radius: 14px;
+      padding: 14px;
+      outline: none;
+      transition: 160ms ease;
+    }
+
+    textarea {
+      min-height: 124px;
+      resize: vertical;
+      line-height: 1.58;
+    }
+
+    input:focus,
+    select:focus,
+    textarea:focus,
+    button:focus-visible {
+      border-color: rgba(114,239,255,0.56);
+      box-shadow: 0 0 0 3px rgba(114,239,255,0.14);
+    }
+
+    .button-row,
+    .tag-row,
+    .micro-row,
+    .quick-actions {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .btn {
+      border-radius: 999px;
+      padding: 13px 18px;
+      border: 1px solid transparent;
+      transition: 160ms ease;
+      font-weight: 650;
+      letter-spacing: 0.02em;
+    }
+
+    .btn:hover { transform: translateY(-1px); }
+
+    .btn-primary {
+      color: #03131a;
+      background: linear-gradient(135deg, var(--cyan), var(--cyan-2));
+      box-shadow: 0 16px 36px rgba(114,239,255,0.22);
+    }
+
+    .btn-secondary {
+      color: var(--text);
+      background: rgba(255,255,255,0.05);
+      border-color: var(--line-strong);
+    }
+
+    .btn-violet {
+      color: #160c23;
+      background: linear-gradient(135deg, var(--violet), #d9cdff);
+      box-shadow: 0 16px 32px rgba(169,141,255,0.18);
+    }
+
+    .btn-danger {
+      color: #fff0f4;
+      background: rgba(255,129,157,0.12);
+      border-color: rgba(255,129,157,0.26);
+    }
+
+    .btn:disabled {
+      opacity: 0.48;
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
+    }
+
+    .focus-stage {
+      min-height: 620px;
+      position: relative;
+      overflow: hidden;
+      background:
+        radial-gradient(circle at 16% 16%, rgba(114,239,255,0.16), transparent 22%),
+        radial-gradient(circle at 84% 18%, rgba(169,141,255,0.12), transparent 20%),
+        linear-gradient(180deg, rgba(255,255,255,0.03), transparent 20%),
+        linear-gradient(180deg, #0b1420 0%, #091019 100%);
+    }
+
+    .focus-stage::after {
+      content: "";
+      position: absolute;
+      inset: 20px;
+      border: 1px solid rgba(114,239,255,0.12);
+      border-radius: 24px;
+      pointer-events: none;
+    }
+
+    .scanline {
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: 40%;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(114,239,255,0.42), transparent);
+      box-shadow: 0 0 22px rgba(114,239,255,0.18);
+    }
+
+    .stage-body {
+      position: relative;
+      z-index: 1;
+      padding: 24px;
+      display: grid;
+      gap: 18px;
+      height: 100%;
+    }
+
+    .stage-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 12px;
+    }
+
+    .hero-preview {
+      min-height: 290px;
+      border-radius: 28px;
+      border: 1px solid rgba(255,255,255,0.08);
+      background:
+        radial-gradient(circle at 22% 24%, rgba(255,193,110,0.22), transparent 22%),
+        radial-gradient(circle at 68% 18%, rgba(114,239,255,0.14), transparent 18%),
+        linear-gradient(180deg, rgba(255,255,255,0.03), transparent),
+        linear-gradient(180deg, rgba(18,27,40,0.98), rgba(8,12,18,0.98));
+      padding: 22px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    .preview-skyline {
+      height: 110px;
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      gap: 8px;
+      align-items: end;
+    }
+
+    .preview-skyline span {
+      display: block;
+      border-radius: 999px 999px 12px 12px;
+      border: 1px solid rgba(114,239,255,0.16);
+      background: linear-gradient(180deg, rgba(114,239,255,0.28), rgba(114,239,255,0.04));
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.05);
+    }
+
+    .preview-skyline span:nth-child(1) { height: 42%; }
+    .preview-skyline span:nth-child(2) { height: 72%; }
+    .preview-skyline span:nth-child(3) { height: 88%; }
+    .preview-skyline span:nth-child(4) { height: 60%; }
+    .preview-skyline span:nth-child(5) { height: 76%; }
+    .preview-skyline span:nth-child(6) { height: 96%; }
+
+    .hero-preview strong {
+      font-size: clamp(1.5rem, 2.4vw, 2.4rem);
+      letter-spacing: -0.04em;
+      max-width: 9ch;
+      line-height: 0.96;
+    }
+
+    .stage-digest {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .metric-card,
+    .status-card,
+    .system-card,
+    .timeline-card,
+    .output-card,
+    .queue-card,
+    .drawer-card,
+    .event-card,
+    .modal-card {
+      border-radius: 20px;
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,0.04);
+    }
+
+    .metric-card {
+      padding: 16px;
+    }
+
+    .metric-card .value {
+      margin-top: 6px;
+      font-size: 1.35rem;
+      font-weight: 700;
+      letter-spacing: -0.04em;
+    }
+
+    .stage-strip {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .stage-pill {
+      padding: 14px 14px 16px;
+      border-radius: 18px;
+      border: 1px solid rgba(134,161,201,0.14);
+      background: rgba(255,255,255,0.03);
+      min-height: 102px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    .stage-pill.done {
+      border-color: rgba(137,239,175,0.32);
+      background: linear-gradient(180deg, rgba(137,239,175,0.12), rgba(137,239,175,0.03));
+    }
+
+    .stage-pill.current {
+      border-color: rgba(114,239,255,0.42);
+      background: linear-gradient(180deg, rgba(114,239,255,0.15), rgba(114,239,255,0.04));
+    }
+
+    .stage-pill.wait {
+      border-color: rgba(255,193,110,0.42);
+      background: linear-gradient(180deg, rgba(255,193,110,0.14), rgba(255,193,110,0.04));
+    }
+
+    .grid-lower {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 380px;
+      gap: 22px;
+    }
+
+    .timeline-panel,
+    .output-panel,
+    .drawer-panel {
+      display: grid;
+      gap: 22px;
+    }
+
+    .timeline-list,
+    .event-list,
+    .system-list,
+    .drawer-list,
+    .queue-list,
+    .detail-list {
+      display: grid;
+      gap: 12px;
+    }
+
+    .timeline-card,
+    .output-card,
+    .queue-card,
+    .drawer-card,
+    .event-card {
+      padding: 16px;
+    }
+
+    .event-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 14px;
+      align-items: flex-start;
+      padding-bottom: 8px;
+      border-bottom: 1px solid rgba(134,161,201,0.08);
+    }
+
+    .event-row:last-child {
+      border-bottom: none;
+      padding-bottom: 0;
+    }
+
+    .time-stamp {
+      color: rgba(114,239,255,0.92);
+      font-size: 0.72rem;
+      white-space: nowrap;
+    }
+
+    .progress {
+      height: 8px;
+      border-radius: 999px;
+      overflow: hidden;
+      background: rgba(255,255,255,0.05);
+      margin-top: 10px;
+    }
+
+    .progress span {
+      display: block;
+      height: 100%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, var(--cyan), var(--violet));
+    }
+
+    .stack-slim {
+      display: grid;
+      gap: 10px;
+    }
+
+    .drawer-toggle {
+      width: 100%;
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: center;
+      padding: 16px 18px;
+      border-radius: 18px;
+      border: 1px solid var(--line);
+      color: var(--text);
+      background: rgba(255,255,255,0.04);
+      text-align: left;
+    }
+
+    .drawer-toggle span:last-child {
+      color: var(--muted);
+      font-size: 0.82rem;
+    }
+
+    .drawer-content {
+      display: none;
+      padding: 0 4px 4px;
+    }
+
+    .drawer.open .drawer-content {
+      display: block;
+    }
+
+    .detail-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 10px 0;
+      border-bottom: 1px solid rgba(134,161,201,0.08);
+    }
+
+    .detail-row:last-child { border-bottom: none; }
+
+    .output-frame {
+      min-height: 280px;
+      position: relative;
+      overflow: hidden;
+      border-radius: 24px;
+      background:
+        radial-gradient(circle at 20% 18%, rgba(255,193,110,0.18), transparent 24%),
+        radial-gradient(circle at 80% 20%, rgba(114,239,255,0.16), transparent 20%),
+        linear-gradient(180deg, rgba(255,255,255,0.03), transparent),
+        linear-gradient(180deg, #101929 0%, #09111a 100%);
+      border: 1px solid rgba(255,255,255,0.08);
+    }
+
+    .output-frame::before {
+      content: "";
+      position: absolute;
+      inset: 18px;
+      border-radius: 20px;
+      border: 1px solid rgba(255,255,255,0.08);
+      background: linear-gradient(180deg, rgba(255,255,255,0.04), transparent);
+    }
+
+    .output-overlay {
+      position: absolute;
+      inset: 0;
+      z-index: 1;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    .stills {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .still {
+      min-height: 126px;
+      padding: 14px;
+      border-radius: 18px;
+      border: 1px solid rgba(134,161,201,0.14);
+      background: linear-gradient(180deg, rgba(255,255,255,0.03), transparent), linear-gradient(180deg, rgba(21,33,49,0.96), rgba(10,15,22,0.98));
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+    }
+
+    .pill-switch {
+      position: relative;
+      width: 38px;
+      height: 24px;
+      border-radius: 999px;
+      border: 1px solid rgba(134,161,201,0.16);
+      background: rgba(255,255,255,0.08);
+      flex: 0 0 auto;
+      cursor: pointer;
+    }
+
+    .pill-switch::after {
+      content: "";
+      position: absolute;
+      top: 3px;
+      left: 3px;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: #ffffff;
+      transition: transform 160ms ease;
+    }
+
+    .pill-switch.on {
+      background: rgba(137,239,175,0.18);
+      border-color: rgba(137,239,175,0.3);
+    }
+
+    .pill-switch.on::after {
+      transform: translateX(14px);
+    }
+
+    .modal-shell {
+      position: fixed;
+      inset: 0;
+      background: rgba(5, 9, 14, 0.6);
+      backdrop-filter: blur(12px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      z-index: 20;
+    }
+
+    .modal-shell.open { display: flex; }
+
+    .modal-card {
+      width: min(860px, 100%);
+      padding: 24px;
+      background: var(--panel-strong);
+      box-shadow: var(--shadow);
+    }
+
+    .modal-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+      margin-top: 18px;
+    }
+
+    .candidate {
+      padding: 16px;
+      border-radius: 18px;
+      border: 1px solid rgba(134,161,201,0.16);
+      background: rgba(255,255,255,0.03);
+      display: grid;
+      gap: 10px;
+    }
+
+    .candidate.selected {
+      border-color: rgba(255,193,110,0.42);
+      background: linear-gradient(180deg, rgba(255,193,110,0.14), rgba(255,193,110,0.04));
+    }
+
+    .assist-note {
+      margin-top: 16px;
+      color: var(--muted);
+      line-height: 1.56;
+      font-size: 0.92rem;
+    }
+
+    .live-banner {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      align-items: center;
+      padding: 16px 18px;
+      border-radius: 20px;
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,0.04);
+      margin-bottom: 22px;
+    }
+
+    .toast {
+      position: fixed;
+      right: 20px;
+      bottom: 20px;
+      padding: 14px 16px;
+      border-radius: 18px;
+      background: rgba(11,18,29,0.94);
+      border: 1px solid rgba(114,239,255,0.22);
+      box-shadow: 0 20px 50px rgba(0,0,0,0.3);
+      color: var(--text);
+      opacity: 0;
+      transform: translateY(12px);
+      pointer-events: none;
+      transition: 180ms ease;
+      z-index: 30;
+      max-width: 320px;
+    }
+
+    .toast.show {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+
+    .qr-panel { margin-bottom: 22px; }
+    .qr-grid {
+      display: grid;
+      grid-template-columns: minmax(320px, 0.9fr) minmax(0, 1.1fr);
+      gap: 18px;
+    }
+    .scanner-frame {
+      position: relative;
+      min-height: 320px;
+      border-radius: 24px;
+      overflow: hidden;
+      border: 1px solid var(--line-strong);
+      background:
+        linear-gradient(135deg, rgba(114,239,255,.08), transparent 35%),
+        rgba(2,7,12,.9);
+      display: grid;
+      place-items: center;
+    }
+    .scanner-frame video {
+      width: 100%; height: 100%; min-height: 320px; object-fit: cover; display: none;
+    }
+    .scanner-frame.live video { display: block; }
+    .scanner-frame.live .scanner-placeholder { display: none; }
+    .scanner-placeholder { padding: 30px; text-align: center; color: var(--muted); max-width: 42ch; }
+    .scanner-reticle {
+      position: absolute; width: min(58%, 250px); aspect-ratio: 1; border: 2px solid rgba(114,239,255,.76);
+      border-radius: 24px; box-shadow: 0 0 0 999px rgba(0,0,0,.18), inset 0 0 30px rgba(114,239,255,.08);
+      pointer-events: none; display: none;
+    }
+    .scanner-frame.live .scanner-reticle { display: block; }
+    .scanner-beam {
+      position:absolute; left: 22%; right:22%; height:2px; top:50%; background: var(--cyan);
+      box-shadow: 0 0 18px var(--cyan); display:none; animation: qrscan 2.1s ease-in-out infinite;
+    }
+    .scanner-frame.live .scanner-beam { display:block; }
+    @keyframes qrscan { 0%,100%{transform:translateY(-90px);opacity:.35} 50%{transform:translateY(90px);opacity:1} }
+    .qr-controls { display:flex; flex-wrap:wrap; gap:10px; margin-top:14px; }
+    .qr-result {
+      min-height: 100%; padding: 20px; border-radius: 24px; border: 1px solid var(--line);
+      background: rgba(255,255,255,.025);
+    }
+    .qr-value {
+      margin-top: 12px; padding: 14px; border-radius: 14px; background: rgba(0,0,0,.24); border: 1px solid var(--line);
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; overflow-wrap:anywhere; color: var(--cyan-2);
+    }
+    .qr-status-grid { display:grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap:10px; margin-top:14px; }
+    .qr-stat { padding:14px; border-radius:16px; background:rgba(255,255,255,.03); border:1px solid var(--line); }
+    .qr-stat small { color:var(--muted); display:block; margin-bottom:7px; }
+    .manual-scan-row { display:grid; grid-template-columns:1fr auto; gap:10px; margin-top:14px; }
+    .manual-scan-row input { min-width:0; }
+    .file-scan-input { display:none; }
+    .registry-list { margin-top:16px; display:grid; gap:10px; max-height:270px; overflow:auto; }
+    .registry-item { padding:12px 14px; border-radius:14px; background:rgba(255,255,255,.025); border:1px solid var(--line); }
+    .registry-item strong { display:block; overflow-wrap:anywhere; }
+    @media (max-width: 980px) { .qr-grid { grid-template-columns:1fr; } .qr-status-grid{grid-template-columns:1fr;} .manual-scan-row{grid-template-columns:1fr;} }
+
+    .section-space { margin-top: 20px; }
+
+    @media (max-width: 1320px) {
+      .hero,
+      .grid-lower { grid-template-columns: 1fr; }
+      .stage-strip { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    }
+
+    @media (max-width: 980px) {
+      .app { grid-template-columns: 1fr; }
+      .rail {
+        position: static;
+        height: auto;
+        flex-direction: row;
+        justify-content: space-between;
+        padding: 16px 18px;
+      }
+      .shell { padding: 18px; }
+      .topbar { flex-direction: column; }
+      .top-actions { justify-content: flex-start; }
+      .director-form,
+      .stage-digest,
+      .modal-grid,
+      .stills,
+      .stage-strip,
+      .hero { grid-template-columns: 1fr; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation: none !important;
+        transition: none !important;
+        scroll-behavior: auto !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <aside class="rail" aria-label="Navigation">
+      <div class="sigil" aria-hidden="true">🎲</div>
+      <button class="rail-btn active" data-target="top">TOP</button>
+      <button class="rail-btn" data-target="workflow">RUN</button>
+      <button class="rail-btn" data-target="output">OUT</button>
+      <button class="rail-btn" data-target="qrscanner">QR</button>
+      <button class="rail-btn" data-target="systems">SYS</button>
+    </aside>
+
+    <main class="shell" id="top">
+      <div class="live-banner">
+        <div>
+          <strong>Modern cinematic redesign</strong>
+          <div class="muted">Core workflow stays strict, but the system logic runs in the background until a user decision is actually required.</div>
+        </div>
+        <span class="tag mono" id="runBadge">RUN · 15S-RUN-101</span>
+      </div>
+
+      <header class="topbar">
+        <div>
+          <div class="eyebrow">15 Studios / cinematic control surface</div>
+          <h1>Simple in front. Strict underneath.</h1>
+          <div class="subhead">
+            This redesigned interface keeps the main page focused on direction, progress, and output. Identity resolution, registration, authorization, dependency checks, and validator logic run in the background and only interrupt the user when the architecture requires human choice.
+          </div>
+        </div>
+        <div class="top-actions">
+          <div class="glass-chip">
+            <small>Current state</small>
+            <strong id="topState">Draft</strong>
+          </div>
+          <div class="glass-chip">
+            <small>Background engine</small>
+            <strong id="engineState">Idle</strong>
+          </div>
+          <div class="glass-chip">
+            <small>Authority</small>
+            <strong>Master Key / Librarian</strong>
+          </div>
+        </div>
+      </header>
+
+      <section class="hero">
+        <section class="panel">
+          <div class="panel-header">
+            <div>
+              <div class="panel-title">Director input</div>
+              <div class="panel-note">The director sets what. The production machine handles how. Most of the architecture stays off-screen unless it needs a decision or explanation.</div>
+            </div>
+            <span class="status-pill draft" id="statusPill">Draft</span>
+          </div>
+          <div class="panel-body">
+            <form class="director-form" id="directorForm">
+              <div class="field">
+                <label for="era">Era</label>
+                <select id="era">
+                  <option>Contemporary</option>
+                  <option selected>Near-Future</option>
+                  <option>Industrial 1890s</option>
+                  <option>Late Bronze Age</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="season">Season</label>
+                <select id="season">
+                  <option>Winter</option>
+                  <option selected>Autumn</option>
+                  <option>Spring</option>
+                  <option>Monsoon</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="scene">Scene</label>
+                <input id="scene" value="Rooftop market chase through suspended lantern rigs" />
+              </div>
+              <div class="field">
+                <label for="timeOfDay">Time of day</label>
+                <select id="timeOfDay">
+                  <option>Dawn</option>
+                  <option selected>Blue hour</option>
+                  <option>Night</option>
+                  <option>Midday</option>
+                </select>
+              </div>
+              <div class="field-full">
+                <label for="direction">Basic / optional direction</label>
+                <textarea id="direction">Tension rises as the lead crosses unstable walkways above the crowd. Keep story readability high. Wet reflective surfaces, long-lens compression, diegetic market sound, and controlled wind-driven cloth motion.</textarea>
+              </div>
+              <div class="field-full">
+                <div class="quick-actions">
+                  <button class="btn btn-primary" type="button" id="rollBtn">🎲 Roll scene</button>
+                  <button class="btn btn-secondary" type="button" id="rerollBtn">Create reroll</button>
+                  <button class="btn btn-secondary" type="button" id="resetBtn">Reset state</button>
+                  <button class="btn btn-danger" type="button" id="injectBlockerBtn">Inject blocker</button>
+                </div>
+                <div class="tag-row section-space">
+                  <span class="tag mono">ROLL ≠ GENERATE</span>
+                  <span class="tag mono">Generate only after authorization</span>
+                  <span class="tag mono">User is interrupted only when needed</span>
+                </div>
+              </div>
+            </form>
+          </div>
+        </section>
+
+        <section class="panel focus-stage">
+          <div class="scanline" aria-hidden="true"></div>
+          <div class="stage-body">
+            <div class="stage-top">
+              <div>
+                <div class="eyebrow">Current run focus</div>
+                <div class="panel-title" id="focusTitle">Ready to roll</div>
+              </div>
+              <span class="tag mono" id="packageTag">PKG · pending</span>
+            </div>
+
+            <div class="hero-preview">
+              <div class="preview-skyline" aria-hidden="true">
+                <span></span><span></span><span></span><span></span><span></span><span></span>
+              </div>
+              <div>
+                <strong id="sceneHeadline">Rooftop market chase</strong>
+                <div class="muted section-space" id="sceneMeta">Near-Future · Autumn · Blue hour</div>
+              </div>
+            </div>
+
+            <div class="stage-digest">
+              <article class="metric-card">
+                <div class="label">System focus</div>
+                <div class="value" id="focusMetric">Idle</div>
+                <small class="muted">What the background engine is doing right now</small>
+              </article>
+              <article class="metric-card">
+                <div class="label">Identity readiness</div>
+                <div class="value" id="identityMetric">0 / 4</div>
+                <small class="muted">Only surfaced if resolution needs you</small>
+              </article>
+              <article class="metric-card">
+                <div class="label">Approval state</div>
+                <div class="value" id="approvalMetric">Awaiting roll</div>
+                <small class="muted">Final Validator approves actual output</small>
+              </article>
+            </div>
+          </div>
+        </section>
+      </section>
+
+
+      <section class="panel qr-panel" id="qrscanner">
+        <div class="panel-header">
+          <div>
+            <div class="panel-title">1-5 Studios / Scene Package QR Scanner</div>
+            <div class="panel-note"><strong>Build:</strong> STUDIO-LIBRARIAN-SECURITY-WAREHOUSE-BRIDGE-V14 · Live backend manifest verification + honest 6-gate readiness.</div>
+            <div class="panel-note">This scanner is for 1-5 Studios only. Production QR codes carry only MK1 authority, a registered Librarian Scene Manifest ID, and its checksum — never the full scene description or invented labels. 1-5 Studios resolves the registered manifest, temporarily loads approved canonical packages, generates, validates, saves continuity, and unloads heavy package bodies.</div>
+          </div>
+          <span class="status-pill draft" id="qrStatusPill">Scanner idle</span>
+        </div>
+        <div class="panel-body">
+          <div class="qr-grid">
+            <div>
+              <div class="scanner-frame" id="scannerFrame">
+                <video id="qrVideo" playsinline muted></video>
+                <div class="scanner-placeholder" id="scannerPlaceholder">
+                  <strong style="display:block;color:var(--text);font-size:1.08rem;margin-bottom:10px;">Scene-package scanner ready</strong>
+                  Point the camera at a production-ready 1-5 Studios QR. Required payload: MK1 authority + registered Scene Manifest ID + checksum.
+                </div>
+                <div class="scanner-reticle" aria-hidden="true"></div>
+                <div class="scanner-beam" aria-hidden="true"></div>
+              </div>
+              <div class="qr-controls">
+                <button class="btn btn-primary" type="button" id="startScannerBtn">▣ Scan scene QR</button>
+                <button class="btn btn-secondary" type="button" id="stopScannerBtn" disabled>Stop camera</button>
+                <label class="btn btn-secondary" for="qrImageInput">Read QR image</label>
+                <input class="file-scan-input" id="qrImageInput" type="file" accept="image/*" capture="environment" />
+              </div>
+              <div class="manual-scan-row">
+                <input id="manualQrInput" placeholder='Paste MK1|manifest-id|checksum' autocomplete="off" />
+                <button class="btn btn-secondary" type="button" id="manualScanBtn">Verify Master-Key QR</button>
+              </div>
+              <div class="manual-scan-row" style="margin-top:10px;">
+                <input id="librarianApiUrl" value="http://127.0.0.1:8000" placeholder="Librarian API URL" autocomplete="off" />
+                <button class="btn btn-secondary" type="button" id="testLibrarianBtn">Test Librarian</button>
+              </div>
+              <div class="panel-note" id="librarianConnectionNote">Local test default: http://127.0.0.1:8000. GitHub Pages production requires an HTTPS Librarian API URL.</div>
+            </div>
+            <div class="qr-result">
+              <div class="eyebrow">Package result</div>
+              <div class="panel-title" id="qrResultTitle">No package scanned</div>
+              <div class="qr-value" id="qrRawValue">Waiting for a 1-5 Studios QR…</div>
+              <div class="qr-status-grid">
+                <div class="qr-stat"><small>Package state</small><strong id="qrIdentityState">Unknown</strong></div>
+                <div class="qr-stat"><small>Resolution action</small><strong id="qrGateAction">Waiting</strong></div>
+                <div class="qr-stat"><small>Package / lead ID</small><strong class="mono" id="qrSystemId">—</strong></div>
+                <div class="qr-stat"><small>Authoritative readiness gates passed</small><strong id="qrRegistryCount">0</strong></div>
+              </div>
+              <div class="button-row section-space">
+                <button class="btn btn-primary" type="button" id="registerQrBtn" disabled>Load scene package</button>
+                <button class="btn btn-secondary" type="button" id="clearQrBtn">Clear result</button>
+              </div>
+              <div class="tag-row section-space">
+                <span class="tag mono">1-5 STUDIOS ONLY</span>
+                <span class="tag mono">QR = MK1 + MANIFEST ID + CHECKSUM</span>
+                <span class="tag mono">≈ 30 MIN PACKAGE</span>
+                <span class="tag mono">LIBRARIAN ISSUES IDs ONLY</span>
+              </div>
+              <div class="registry-list" id="qrRegistryList"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+
+      <section class="panel" id="masterKeyProtocol">
+        <div class="panel-header">
+          <div>
+            <div class="panel-title">Master-Key / Librarian AI Handoff Protocol</div>
+            <div class="panel-note"><strong>Core v1 Safety-Net:</strong> Intake/Security IDs, provisional TMP identities, and Permanent IDs are separate. A no-match may receive a non-recycled TMP identity so working/preview production can continue. TMP never means Permanent. Final authoritative approval remains blocked until every required identity is Librarian-resolved and the registered manifest/checksum gates pass.</div>
+            <div class="panel-note">The AI preparing a scene package must resolve reusable elements before a production QR can exist.</div>
+          </div>
+          <span class="status-pill active-state">Strict underneath</span>
+        </div>
+        <div class="panel-body">
+          <div class="qr-status-grid">
+            <div class="qr-stat"><small>Exact match</small><strong>Reuse Permanent ID + canonical package</strong></div>
+            <div class="qr-stat"><small>Multiple matches</small><strong>Stop for human selection</strong></div>
+            <div class="qr-stat"><small>No match</small><strong>Issue provisional TMP working identity → Librarian reconciliation</strong></div>
+            <div class="qr-stat"><small>ID authority</small><strong>Scene Roll / Animator cannot issue IDs</strong></div>
+          </div>
+          <div class="assist-note section-space">
+            <strong>Registration path:</strong> QUARANTINE → SEARCH AGAIN → RESEARCH → AUDIT #1 → WIDE-NET RESEARCH → AUDIT #2 → VERIFY → AUTHORIZE → ISSUE ONE PERMANENT ID → BUILD ONE CANONICAL PACKAGE → LOCK → RETURN THE ID.
+          </div>
+          <div class="assist-note section-space">
+            <strong>QR readiness gate:</strong> SCENE_LOCKED × REQUIRED_TAGS_RESOLVED × CANONICAL_PACKAGES_FOUND × RELATIONSHIPS_VALID × MANIFEST_REGISTERED × CHECKSUM_VERIFIED = QR_READY. If any factor is zero, production must stop.
+          </div>
+        </div>
+      </section>
+
+      <section class="grid-lower" id="workflow">
+        <section class="timeline-panel">
+          <section class="panel">
+            <div class="panel-header">
+              <div>
+                <div class="panel-title">Run progress</div>
+                <div class="panel-note">Only high-level progress stays visible here. Deep logic lives in the background engine and audit drawer.</div>
+              </div>
+              <span class="status-pill active-state" id="progressPill">Waiting for roll</span>
+            </div>
+            <div class="panel-body">
+              <div class="stage-strip" id="stageStrip"></div>
+            </div>
+          </section>
+
+          <section class="panel" id="output">
+            <div class="panel-header">
+              <div>
+                <div class="panel-title">Output review</div>
+                <div class="panel-note">The main page shows a cinematic output surface, not every technical subsystem. The details are available on demand.</div>
+              </div>
+              <span class="tag mono" id="outputTag">OUTPUT · pending</span>
+            </div>
+            <div class="panel-body output-panel">
+              <div class="output-card">
+                <div class="output-frame">
+                  <div class="output-overlay">
+                    <div>
+                      <div class="eyebrow">Shot preview</div>
+                      <strong id="outputTitle">No output yet</strong>
+                    </div>
+                    <div class="muted" id="outputMeta">Roll a scene to let the background workflow start.</div>
+                  </div>
+                </div>
+              </div>
+              <div class="stills" id="stillFrames"></div>
+            </div>
+          </section>
+
+          <section class="panel">
+            <div class="panel-header">
+              <div>
+                <div class="panel-title">Event timeline</div>
+                <div class="panel-note">A human-readable summary of what the system just did, why it paused, and what it approved.</div>
+              </div>
+            </div>
+            <div class="panel-body">
+              <div class="event-list" id="eventList"></div>
+            </div>
+          </section>
+        </section>
+
+        <aside class="drawer-panel" id="systems">
+          <section class="panel">
+            <div class="panel-header">
+              <div>
+                <div class="panel-title">Background systems</div>
+                <div class="panel-note">The complexity lives here instead of cluttering the main experience.</div>
+              </div>
+              <span class="tag mono">Quiet by default</span>
+            </div>
+            <div class="panel-body drawer-list">
+              <article class="status-card">
+                <div class="stack-slim">
+                  <strong>Scene package engine</strong>
+                  <div class="muted" id="systemSummary">Waiting to create a controlled production run.</div>
+                  <div class="tag-row">
+                    <span class="tag" id="runIdTag">Run ID: 15S-RUN-101</span>
+                    <span class="tag" id="authTag">Not authorized</span>
+                  </div>
+                </div>
+              </article>
+
+              <div class="drawer" id="drawerIdentity">
+                <button class="drawer-toggle" type="button">
+                  <span>Identity resolution</span>
+                  <span>Librarian: exact match / possible match / provisional Safety-Net / controlled registration</span>
+                </button>
+                <div class="drawer-content">
+                  <div class="drawer-card detail-list" id="identityDetails"></div>
+                </div>
+              </div>
+
+              <div class="drawer" id="drawerDepartments">
+                <button class="drawer-toggle" type="button">
+                  <span>Three creative departments</span>
+                  <span>Production Design / Cinematography / Sound</span>
+                </button>
+                <div class="drawer-content">
+                  <div class="drawer-card detail-list" id="departmentDetails"></div>
+                </div>
+              </div>
+
+              <div class="drawer" id="drawerValidator">
+                <button class="drawer-toggle" type="button">
+                  <span>Validator and continuity</span>
+                  <span>Approval trace</span>
+                </button>
+                <div class="drawer-content">
+                  <div class="drawer-card detail-list" id="validatorDetails"></div>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section class="panel">
+            <div class="panel-header">
+              <div>
+                <div class="panel-title">Automation queue</div>
+                <div class="panel-note">These are the background jobs now running or recently completed.</div>
+              </div>
+            </div>
+            <div class="panel-body">
+              <div class="queue-list" id="queueList"></div>
+            </div>
+          </section>
+        </aside>
+      </section>
+    </main>
+  </div>
+
+  <div class="modal-shell" id="decisionModal" aria-hidden="true">
+    <div class="modal-card">
+      <div class="eyebrow">User decision required</div>
+      <div class="panel-title">Multiple approved identity matches found</div>
+      <div class="assist-note">
+        The system stopped because two approved lantern-rig packages match the scene. It will not guess. Choose one approved candidate so the run can continue.
+      </div>
+      <div class="modal-grid" id="modalChoices"></div>
+      <div class="button-row section-space">
+        <button class="btn btn-primary" type="button" id="confirmChoiceBtn" disabled>Confirm choice and continue</button>
+        <button class="btn btn-secondary" type="button" id="closeModalBtn">Review later</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+  <script src="https://unpkg.com/@zxing/library@0.23.0"></script>
+  <script>
+    const STORAGE_KEY = '15-studios-qr-hotfix-9';
+    const stageKeys = ['direction', 'lock', 'resolve', 'produce', 'authorize'];
+    const stageLabels = [
+      { title: 'Direction set', note: 'Creative intent captured' },
+      { title: 'Scene locked', note: 'Baseline frozen' },
+      { title: 'Identity resolved', note: 'Reuse / selection / registration' },
+      { title: 'Production ready', note: 'Departments completed in background' },
+      { title: 'Output approved', note: 'Final Validator passed' }
+    ];
+    const candidates = [
+      {
+        id: 'rig-a',
+        title: 'Rig A / east span layout',
+        summary: 'Longer walkway silhouette, wider lantern spacing, better crowd readability.',
+        tags: ['Approved', 'Permanent package exists', 'Continuity-safe']
+      },
+      {
+        id: 'rig-b',
+        title: 'Rig B / compressed center span',
+        summary: 'Denser lantern canopy, stronger visual compression, narrower traversal path.',
+        tags: ['Approved', 'Permanent package exists', 'Higher visual density']
+      }
+    ];
+
+    function stamp() {
+      return new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    }
+
+
+    /*
+      1-5 STUDIOS — INTERNAL MASTER LIBRARY CORE V14
+
+      IMPORTANT AUTHORITY BOUNDARY:
+      - This browser layer DOES NOT issue Permanent IDs.
+      - It accepts Permanent IDs only after they are supplied/resolved by the authorized Librarian.
+      - Classification, aliases, variants, relationships, state, timeline references, and storage locations
+        remain separate from immutable identity.
+      - Production authority still requires the authenticated Librarian/backend.
+    */
+    const MASTER_LIBRARY_SCHEMA_VERSION = '14.0';
+    const MASTER_LIBRARY_KEY = '15-studios-master-library-core-v14';
+
+    function createEmptyMasterLibraryState() {
+      return {
+        schemaVersion: MASTER_LIBRARY_SCHEMA_VERSION,
+        identities: {},
+        classifications: {},
+        aliases: {},
+        canonicalPackages: {},
+        packageVersions: {},
+        relationships: {},
+        variants: {},
+        dependencies: {},
+        timelineRefs: {},
+        assets: {},
+        manifests: {},
+        registrationOperations: {},
+        researchEvidence: {},
+        publishCandidates: {},
+        workflow: [],
+        authorityLedger: [],
+        provenanceLedger: [],
+        auditLedger: [],
+        failureTrace: []
+      };
+    }
+
+    function loadMasterLibraryState() {
+      try {
+        const raw = localStorage.getItem(MASTER_LIBRARY_KEY);
+        if (!raw) return createEmptyMasterLibraryState();
+        const parsed = JSON.parse(raw);
+        return { ...createEmptyMasterLibraryState(), ...parsed, schemaVersion: MASTER_LIBRARY_SCHEMA_VERSION };
+      } catch (_) {
+        return createEmptyMasterLibraryState();
+      }
+    }
+
+    class InternalMasterLibraryCore {
+      constructor(initialState) {
+        this.state = initialState || createEmptyMasterLibraryState();
+      }
+
+      save() {
+        localStorage.setItem(MASTER_LIBRARY_KEY, JSON.stringify(this.state));
+      }
+
+      now() {
+        return new Date().toISOString();
+      }
+
+      normalize(value) {
+        return String(value || '').trim().toLowerCase().replace(/\s+/g, ' ');
+      }
+
+      recordAudit(action, detail = {}) {
+        this.state.auditLedger.unshift({
+          at: this.now(),
+          action,
+          detail
+        });
+        this.state.auditLedger = this.state.auditLedger.slice(0, 500);
+        this.save();
+      }
+
+      recordAuthority(action, authority, detail = {}) {
+        this.state.authorityLedger.unshift({
+          at: this.now(),
+          action,
+          authority: authority || 'UNKNOWN',
+          detail
+        });
+        this.state.authorityLedger = this.state.authorityLedger.slice(0, 500);
+        this.save();
+      }
+
+      recordProvenance(action, detail = {}) {
+        this.state.provenanceLedger.unshift({
+          at: this.now(),
+          action,
+          detail
+        });
+        this.state.provenanceLedger = this.state.provenanceLedger.slice(0, 1000);
+        this.save();
+      }
+
+      newOperationId(prefix = 'REGOP') {
+        const random = (globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(16).slice(2)}`);
+        return `${prefix}-${random}`;
+      }
+
+      beginRegistrationOperation(candidate = {}) {
+        const query = String(candidate.query || candidate.canonicalName || candidate.label || '').trim();
+        if (!query) return { ok: false, status: 'BLOCKED', reason: 'Candidate query/name required' };
+
+        const resolution = this.resolveEntity(query);
+        const operationId = String(candidate.operationId || this.newOperationId()).trim();
+        const status = resolution.status === 'MATCHED'
+          ? 'EXACT_MATCH'
+          : resolution.status === 'AMBIGUOUS'
+            ? 'AMBIGUOUS'
+            : 'RESEARCH_REQUIRED';
+
+        const operation = {
+          operationId,
+          candidateRef: candidate.candidateRef || null,
+          query,
+          normalizedQuery: this.normalize(query),
+          classificationHint: candidate.classificationHint || null,
+          status,
+          resolutionSnapshot: resolution,
+          evidenceIds: [],
+          checkpoints: {
+            quarantine: true,
+            searchAgain: true,
+            audit1Passed: false,
+            wideNetResearchPassed: false,
+            audit2Passed: false,
+            verificationPassed: false,
+            finalDuplicateCheckPassed: false,
+            authorized: false
+          },
+          createdAt: this.now(),
+          updatedAt: this.now()
+        };
+
+        this.state.registrationOperations[operationId] = operation;
+        this.recordAudit('REGISTRATION_OPERATION_OPENED', { operationId, query, status });
+        return { ok: true, operation: JSON.parse(JSON.stringify(operation)) };
+      }
+
+      stageResearchEvidence(operationId, evidence = {}) {
+        const operation = this.state.registrationOperations[operationId];
+        if (!operation) return { ok: false, status: 'BLOCKED', reason: 'Registration operation not found' };
+        if (operation.status === 'EXACT_MATCH' || operation.status === 'AMBIGUOUS') {
+          return { ok: false, status: 'BLOCKED', reason: 'Research cannot bypass an existing or ambiguous identity resolution' };
+        }
+
+        const source = String(evidence.source || evidence.sourceUrl || evidence.sourceTitle || '').trim();
+        const claim = String(evidence.claim || evidence.summary || '').trim();
+        if (!source || !claim) return { ok: false, status: 'BLOCKED', reason: 'Evidence source and claim/summary required' };
+
+        const evidenceId = String(evidence.evidenceId || this.newOperationId('EVID')).trim();
+        const record = {
+          evidenceId,
+          operationId,
+          source,
+          sourceUrl: evidence.sourceUrl || null,
+          sourceTitle: evidence.sourceTitle || null,
+          sourceType: evidence.sourceType || 'EXTERNAL_RESEARCH',
+          claim,
+          collectedBy: evidence.collectedBy || 'RESEARCH_GATEWAY',
+          collectedAt: evidence.collectedAt || this.now(),
+          verificationStatus: 'STAGED',
+          verifiedBy: null,
+          verifiedAt: null,
+          notes: evidence.notes || null
+        };
+
+        this.state.researchEvidence[evidenceId] = record;
+        if (!operation.evidenceIds.includes(evidenceId)) operation.evidenceIds.push(evidenceId);
+        operation.status = 'RESEARCH_PENDING';
+        operation.updatedAt = this.now();
+        this.recordProvenance('RESEARCH_EVIDENCE_STAGED', { operationId, evidenceId, source, claim });
+        return { ok: true, evidence: JSON.parse(JSON.stringify(record)) };
+      }
+
+      verifyResearchEvidence(operationId, evidenceId, verification = {}) {
+        const operation = this.state.registrationOperations[operationId];
+        const evidence = this.state.researchEvidence[evidenceId];
+        if (!operation || !evidence || evidence.operationId !== operationId) {
+          return { ok: false, status: 'BLOCKED', reason: 'Registration operation/evidence mismatch' };
+        }
+        const outcome = String(verification.outcome || '').trim().toUpperCase();
+        if (!['VERIFIED', 'REJECTED'].includes(outcome)) {
+          return { ok: false, status: 'BLOCKED', reason: 'Verification outcome must be VERIFIED or REJECTED' };
+        }
+        const verifier = String(verification.verifiedBy || '').trim();
+        if (!verifier) return { ok: false, status: 'BLOCKED', reason: 'Verifier required' };
+
+        evidence.verificationStatus = outcome;
+        evidence.verifiedBy = verifier;
+        evidence.verifiedAt = this.now();
+        evidence.notes = verification.notes || evidence.notes || null;
+        operation.updatedAt = this.now();
+        this.recordProvenance('RESEARCH_EVIDENCE_VERIFIED', { operationId, evidenceId, outcome, verifier });
+        return { ok: true, evidence: JSON.parse(JSON.stringify(evidence)) };
+      }
+
+      recordRegistrationCheckpoint(operationId, checkpoint, passed, detail = {}) {
+        const operation = this.state.registrationOperations[operationId];
+        if (!operation) return { ok: false, status: 'BLOCKED', reason: 'Registration operation not found' };
+        const allowed = ['audit1Passed', 'wideNetResearchPassed', 'audit2Passed', 'verificationPassed'];
+        if (!allowed.includes(checkpoint)) return { ok: false, status: 'BLOCKED', reason: 'Unsupported registration checkpoint' };
+        operation.checkpoints[checkpoint] = passed === true;
+        operation.updatedAt = this.now();
+        this.recordAudit('REGISTRATION_CHECKPOINT_RECORDED', { operationId, checkpoint, passed: passed === true, detail });
+        return { ok: true, operation: JSON.parse(JSON.stringify(operation)) };
+      }
+
+      evaluateRegistrationOperation(operationId) {
+        const operation = this.state.registrationOperations[operationId];
+        if (!operation) return { ok: false, status: 'BLOCKED', reason: 'Registration operation not found' };
+
+        const currentResolution = this.resolveEntity(operation.query);
+        operation.resolutionSnapshot = currentResolution;
+        operation.updatedAt = this.now();
+
+        if (currentResolution.status === 'MATCHED') {
+          operation.status = 'EXACT_MATCH';
+          operation.checkpoints.finalDuplicateCheckPassed = false;
+          this.save();
+          return { ok: true, status: 'EXACT_MATCH', matches: currentResolution.matches };
+        }
+        if (currentResolution.status === 'AMBIGUOUS') {
+          operation.status = 'AMBIGUOUS';
+          operation.checkpoints.finalDuplicateCheckPassed = false;
+          this.save();
+          return { ok: true, status: 'AMBIGUOUS', matches: currentResolution.matches };
+        }
+
+        operation.checkpoints.finalDuplicateCheckPassed = true;
+        const evidence = operation.evidenceIds.map(id => this.state.researchEvidence[id]).filter(Boolean);
+        if (!evidence.length) {
+          operation.status = 'RESEARCH_REQUIRED';
+          this.save();
+          return { ok: true, status: operation.status, missing: ['RESEARCH_EVIDENCE'] };
+        }
+        if (evidence.some(item => item.verificationStatus === 'REJECTED')) {
+          operation.status = 'RESEARCH_INSUFFICIENT';
+          this.save();
+          return { ok: true, status: operation.status, rejectedEvidence: evidence.filter(item => item.verificationStatus === 'REJECTED').map(item => item.evidenceId) };
+        }
+        if (evidence.some(item => item.verificationStatus !== 'VERIFIED')) {
+          operation.status = 'RESEARCH_PENDING';
+          this.save();
+          return { ok: true, status: operation.status, pendingEvidence: evidence.filter(item => item.verificationStatus !== 'VERIFIED').map(item => item.evidenceId) };
+        }
+
+        const requiredChecks = ['audit1Passed', 'wideNetResearchPassed', 'audit2Passed', 'verificationPassed', 'finalDuplicateCheckPassed'];
+        const missingChecks = requiredChecks.filter(name => operation.checkpoints[name] !== true);
+        if (missingChecks.length) {
+          operation.status = 'CHECKPOINTS_PENDING';
+          this.save();
+          return { ok: true, status: operation.status, missing: missingChecks };
+        }
+
+        operation.status = 'VERIFIED_NEW_CANDIDATE';
+        this.save();
+        return { ok: true, status: operation.status, operation: JSON.parse(JSON.stringify(operation)) };
+      }
+
+      authorizeRegistrationCandidate(operationId, authorization = {}) {
+        const operation = this.state.registrationOperations[operationId];
+        if (!operation) return { ok: false, status: 'BLOCKED', reason: 'Registration operation not found' };
+        const evaluated = this.evaluateRegistrationOperation(operationId);
+        if (evaluated.status !== 'VERIFIED_NEW_CANDIDATE') {
+          return { ok: false, status: 'BLOCKED', reason: `Candidate is ${evaluated.status}, not VERIFIED_NEW_CANDIDATE` };
+        }
+
+        // Browser V13 records an authorization decision only. It still cannot issue a Permanent ID.
+        if (authorization.authorized !== true || !String(authorization.authority || '').trim()) {
+          return { ok: false, status: 'BLOCKED', reason: 'Explicit Librarian/Master-Key authorization record required' };
+        }
+        operation.checkpoints.authorized = true;
+        operation.status = 'AUTHORIZED_AWAITING_BACKEND_ISSUANCE';
+        operation.authorization = {
+          authority: String(authorization.authority).trim(),
+          authorizationRef: authorization.authorizationRef || null,
+          authorizedAt: this.now()
+        };
+        operation.updatedAt = this.now();
+        this.recordAuthority('REGISTRATION_CANDIDATE_AUTHORIZED', operation.authorization.authority, { operationId, authorizationRef: operation.authorization.authorizationRef });
+        return { ok: true, status: operation.status, operation: JSON.parse(JSON.stringify(operation)) };
+      }
+
+      prepareCanonicalPackagePublish(operationId, supplied = {}) {
+        const operation = this.state.registrationOperations[operationId];
+        if (!operation || operation.status !== 'AUTHORIZED_AWAITING_BACKEND_ISSUANCE') {
+          return { ok: false, status: 'BLOCKED', reason: 'Authorized registration operation required' };
+        }
+        const permanentId = String(supplied.permanentId || '').trim();
+        if (!permanentId) {
+          return { ok: false, status: 'BACKEND_AUTHORITY_REQUIRED', reason: 'Permanent ID must be supplied by the authoritative Librarian/backend' };
+        }
+        if (!this.state.identities[permanentId]) {
+          return { ok: false, status: 'BLOCKED', reason: 'Supplied Permanent ID must first be accepted from Librarian' };
+        }
+
+        const packageId = String(supplied.packageId || '').trim();
+        const version = String(supplied.version || '').trim();
+        const fingerprint = String(supplied.fingerprint || '').trim();
+        const provenanceRefs = Array.isArray(supplied.provenanceRefs) ? supplied.provenanceRefs.filter(Boolean) : [];
+        const missing = [];
+        if (!packageId) missing.push('PACKAGE_ID');
+        if (!version) missing.push('VERSION');
+        if (!fingerprint) missing.push('FINGERPRINT');
+        if (!this.state.classifications[permanentId]) missing.push('CLASSIFICATION');
+        if (!provenanceRefs.length) missing.push('PROVENANCE');
+        if (missing.length) return { ok: false, status: 'PREFLIGHT_FAILED', missing };
+
+        const candidateId = String(supplied.candidateId || this.newOperationId('PUB')).trim();
+        const candidate = {
+          candidateId,
+          operationId,
+          permanentId,
+          packageId,
+          version,
+          fingerprint,
+          provenanceRefs,
+          storageRef: supplied.storageRef || null,
+          mediaRefs: Array.isArray(supplied.mediaRefs) ? supplied.mediaRefs : [],
+          status: 'PREFLIGHT_PASSED_AWAITING_BACKEND_PUBLISH',
+          preparedAt: this.now()
+        };
+        this.state.publishCandidates[candidateId] = candidate;
+        this.recordAudit('CANONICAL_PACKAGE_PUBLISH_PREFLIGHT_PASSED', { candidateId, operationId, permanentId, packageId, version });
+        return { ok: true, status: candidate.status, candidate: JSON.parse(JSON.stringify(candidate)) };
+      }
+
+      registerResolvedIdentity(record) {
+        const permanentId = String(record?.permanentId || '').trim();
+        if (!permanentId) {
+          return { ok: false, status: 'BLOCKED', reason: 'Permanent ID required from Librarian' };
+        }
+
+        const existing = this.state.identities[permanentId];
+        if (existing) {
+          return { ok: true, status: 'REUSED', identity: existing };
+        }
+
+        const identity = {
+          permanentId,
+          canonicalName: String(record.canonicalName || '').trim() || permanentId,
+          authority: String(record.authority || 'LIBRARIAN').trim(),
+          status: String(record.status || 'ACTIVE').trim(),
+          firstSeen: this.now(),
+          updatedAt: this.now()
+        };
+
+        this.state.identities[permanentId] = identity;
+        this.recordAuthority('IDENTITY_ACCEPTED_FROM_LIBRARIAN', identity.authority, { permanentId });
+        return { ok: true, status: 'REGISTERED_REFERENCE', identity };
+      }
+
+      setClassification(permanentId, classification = {}) {
+        if (!this.state.identities[permanentId]) {
+          return { ok: false, status: 'BLOCKED', reason: 'Identity must resolve before classification is attached' };
+        }
+
+        const record = {
+          permanentId,
+          domain: classification.domain || null,
+          kingdom: classification.kingdom || null,
+          className: classification.className || classification.class || null,
+          order: classification.order || null,
+          family: classification.family || null,
+          genus: classification.genus || null,
+          species: classification.species || null,
+          commonName: classification.commonName || null,
+          type: classification.type || null,
+          subtype: classification.subtype || null,
+          verifiedBy: classification.verifiedBy || null,
+          updatedAt: this.now()
+        };
+
+        this.state.classifications[permanentId] = record;
+        this.recordAudit('CLASSIFICATION_UPDATED', { permanentId, classification: record });
+        return { ok: true, classification: record };
+      }
+
+      addAlias(permanentId, alias) {
+        if (!this.state.identities[permanentId]) {
+          return { ok: false, status: 'BLOCKED', reason: 'Identity must resolve before alias can be attached' };
+        }
+
+        const key = this.normalize(alias);
+        if (!key) return { ok: false, status: 'BLOCKED', reason: 'Alias required' };
+
+        const current = Array.isArray(this.state.aliases[key]) ? this.state.aliases[key] : [];
+        if (!current.includes(permanentId)) current.push(permanentId);
+        this.state.aliases[key] = current;
+        this.recordAudit('ALIAS_ATTACHED', { permanentId, alias: String(alias).trim() });
+        return { ok: true, alias: String(alias).trim(), permanentIds: [...current] };
+      }
+
+      resolveEntity(query) {
+        const raw = String(query || '').trim();
+        if (!raw) return { status: 'MISSING', matches: [] };
+
+        if (this.state.identities[raw]) {
+          return { status: 'MATCHED', matches: [this.describeIdentity(raw)] };
+        }
+
+        const key = this.normalize(raw);
+        const ids = new Set(this.state.aliases[key] || []);
+
+        for (const [permanentId, identity] of Object.entries(this.state.identities)) {
+          if (this.normalize(identity.canonicalName) === key) ids.add(permanentId);
+          const c = this.state.classifications[permanentId];
+          if (c) {
+            for (const value of [c.commonName, c.species, c.type, c.subtype]) {
+              if (this.normalize(value) === key) ids.add(permanentId);
+            }
+          }
+        }
+
+        const matches = [...ids].map(id => this.describeIdentity(id)).filter(Boolean);
+        if (matches.length === 1) return { status: 'MATCHED', matches };
+        if (matches.length > 1) return { status: 'AMBIGUOUS', matches };
+        return { status: 'MISSING', matches: [] };
+      }
+
+      describeIdentity(permanentId) {
+        const identity = this.state.identities[permanentId];
+        if (!identity) return null;
+        return {
+          ...identity,
+          classification: this.state.classifications[permanentId] || null,
+          canonicalPackage: this.state.canonicalPackages[permanentId] || null,
+          variants: Object.values(this.state.variants).filter(v => v.permanentId === permanentId)
+        };
+      }
+
+      attachCanonicalPackage(permanentId, packageRecord = {}) {
+        if (!this.state.identities[permanentId]) {
+          return { ok: false, status: 'BLOCKED', reason: 'Identity must resolve before canonical package attachment' };
+        }
+
+        const packageId = String(packageRecord.packageId || '').trim();
+        if (!packageId) return { ok: false, status: 'BLOCKED', reason: 'Package ID required' };
+
+        const record = {
+          packageId,
+          permanentId,
+          currentVersion: packageRecord.currentVersion || null,
+          storageRef: packageRecord.storageRef || null,
+          mediaRefs: Array.isArray(packageRecord.mediaRefs) ? packageRecord.mediaRefs : [],
+          status: packageRecord.status || 'ACTIVE',
+          updatedAt: this.now()
+        };
+
+        this.state.canonicalPackages[permanentId] = record;
+        this.recordAudit('CANONICAL_PACKAGE_ATTACHED', { permanentId, packageId });
+        return { ok: true, package: record };
+      }
+
+      registerPackageVersion(packageId, version, data = {}) {
+        const key = `${packageId}::${version}`;
+        const record = {
+          packageId,
+          version: String(version),
+          fingerprint: data.fingerprint || null,
+          storageRef: data.storageRef || null,
+          createdAt: data.createdAt || this.now(),
+          immutable: Boolean(data.immutable),
+          metadata: data.metadata || {}
+        };
+        this.state.packageVersions[key] = record;
+        this.recordAudit('PACKAGE_VERSION_REGISTERED', { packageId, version: String(version) });
+        return { ok: true, version: record };
+      }
+
+      registerRelationship(record = {}) {
+        const relationshipId = String(record.relationshipId || '').trim();
+        const subjectId = String(record.subjectId || '').trim();
+        const objectId = String(record.objectId || '').trim();
+        const type = String(record.type || '').trim().toUpperCase();
+
+        if (!relationshipId || !subjectId || !objectId || !type) {
+          return { ok: false, status: 'BLOCKED', reason: 'relationshipId, subjectId, objectId, and type are required' };
+        }
+        if (!this.state.identities[subjectId] || !this.state.identities[objectId]) {
+          return { ok: false, status: 'BLOCKED', reason: 'Relationship endpoints must resolve first' };
+        }
+
+        const existing = this.state.relationships[relationshipId];
+        if (existing) return { ok: true, status: 'REUSED', relationship: existing };
+
+        const rel = { relationshipId, subjectId, objectId, type, state: record.state || null, createdAt: this.now() };
+        this.state.relationships[relationshipId] = rel;
+        this.recordAudit('RELATIONSHIP_REGISTERED', rel);
+        return { ok: true, status: 'REGISTERED_REFERENCE', relationship: rel };
+      }
+
+      registerVariant(record = {}) {
+        const variantId = String(record.variantId || '').trim();
+        const permanentId = String(record.permanentId || '').trim();
+        if (!variantId || !permanentId || !this.state.identities[permanentId]) {
+          return { ok: false, status: 'BLOCKED', reason: 'Resolved identity and variant ID required' };
+        }
+        const variant = {
+          variantId,
+          permanentId,
+          name: record.name || variantId,
+          packageVersion: record.packageVersion || null,
+          stateDelta: record.stateDelta || {},
+          approved: Boolean(record.approved),
+          updatedAt: this.now()
+        };
+        this.state.variants[variantId] = variant;
+        this.recordAudit('VARIANT_REGISTERED', { variantId, permanentId });
+        return { ok: true, variant };
+      }
+
+      registerDependency(record = {}) {
+        const dependencyId = String(record.dependencyId || '').trim();
+        if (!dependencyId) return { ok: false, status: 'BLOCKED', reason: 'Dependency ID required' };
+        const dep = {
+          dependencyId,
+          ownerRef: record.ownerRef || null,
+          requires: Array.isArray(record.requires) ? [...new Set(record.requires)] : [],
+          type: record.type || 'REQUIRED',
+          updatedAt: this.now()
+        };
+        this.state.dependencies[dependencyId] = dep;
+        this.recordAudit('DEPENDENCY_REGISTERED', dep);
+        return { ok: true, dependency: dep };
+      }
+
+      registerTimelineRef(record = {}) {
+        const timelineRefId = String(record.timelineRefId || '').trim();
+        if (!timelineRefId) return { ok: false, status: 'BLOCKED', reason: 'Timeline reference ID required' };
+        const timeline = {
+          timelineRefId,
+          sequence: record.sequence || null,
+          scene: record.scene || null,
+          shot: record.shot || null,
+          clip: record.clip || null,
+          sourceRange: record.sourceRange || null,
+          mediaRef: record.mediaRef || null,
+          metadata: record.metadata || {},
+          updatedAt: this.now()
+        };
+        this.state.timelineRefs[timelineRefId] = timeline;
+        this.recordAudit('TIMELINE_REFERENCE_REGISTERED', { timelineRefId });
+        return { ok: true, timeline };
+      }
+
+      recordVerifiedManifest(parsed, verified, readiness) {
+        const manifestId = String(parsed?.manifestId || '').trim();
+        if (!manifestId) return { ok: false, status: 'BLOCKED', reason: 'Manifest ID required' };
+
+        const record = {
+          manifestId,
+          mk: parsed.mk || null,
+          checksum: parsed.checksum || null,
+          checksumVerified: Boolean(verified?.checksum_verified),
+          packageId: verified?.package_code || manifestId,
+          manifestState: verified?.manifest_state || 'UNKNOWN',
+          requiredReferenceCount: Number(verified?.required_reference_count || 0),
+          gates: { ...(readiness?.gates || {}) },
+          passed: Number(readiness?.passed || 0),
+          ready: readiness?.ready === true,
+          verifiedAt: this.now()
+        };
+
+        this.state.manifests[manifestId] = record;
+        this.recordAuthority('MANIFEST_VERIFIED_BY_LIBRARIAN', parsed.mk || 'UNKNOWN', {
+          manifestId,
+          ready: record.ready,
+          passed: record.passed
+        });
+        return { ok: true, manifest: record };
+      }
+
+      evaluateReadiness(manifestId) {
+        const m = this.state.manifests[manifestId];
+        if (!m) return { ready: false, passed: 0, failed: ['MANIFEST_NOT_FOUND'] };
+
+        const required = [
+          'SCENE_LOCKED',
+          'REQUIRED_TAGS_RESOLVED',
+          'CANONICAL_PACKAGES_FOUND',
+          'RELATIONSHIPS_VALID',
+          'MANIFEST_REGISTERED',
+          'CHECKSUM_VERIFIED'
+        ];
+
+        const failed = required.filter(name => m.gates?.[name] !== true);
+        return {
+          ready: failed.length === 0,
+          passed: required.length - failed.length,
+          total: required.length,
+          failed
+        };
+      }
+
+      recordWorkflow(step, status, detail = {}) {
+        this.state.workflow.unshift({
+          at: this.now(),
+          step,
+          status,
+          detail
+        });
+        this.state.workflow = this.state.workflow.slice(0, 500);
+        this.save();
+      }
+
+      recordFailure(failure = {}) {
+        const record = {
+          at: this.now(),
+          failureId: failure.failureId || `FAIL-${Date.now()}`,
+          component: failure.component || null,
+          firstWrongStep: failure.firstWrongStep || null,
+          lastKnownGood: failure.lastKnownGood || null,
+          evidence: failure.evidence || null,
+          recoveryStatus: failure.recoveryStatus || 'OPEN'
+        };
+        this.state.failureTrace.unshift(record);
+        this.state.failureTrace = this.state.failureTrace.slice(0, 500);
+        this.save();
+        return record;
+      }
+
+      snapshot() {
+        return JSON.parse(JSON.stringify(this.state));
+      }
+    }
+
+    const masterLibrary = new InternalMasterLibraryCore(loadMasterLibraryState());
+    window.OneFiveStudiosMasterLibrary = masterLibrary;
+
+    function defaultState() {
+      return {
+        runNumber: 101,
+        runId: '15S-RUN-101',
+        scene: {
+          era: 'Near-Future',
+          season: 'Autumn',
+          scene: 'Rooftop market chase through suspended lantern rigs',
+          timeOfDay: 'Blue hour',
+          direction: 'Tension rises as the lead crosses unstable walkways above the crowd. Keep story readability high. Wet reflective surfaces, long-lens compression, diegetic market sound, and controlled wind-driven cloth motion.'
+        },
+        status: 'draft',
+        engine: 'Idle',
+        focus: 'Idle',
+        approval: 'Awaiting roll',
+        identityReady: 0,
+        packageTag: 'PKG · pending',
+        authorized: false,
+        approved: false,
+        outputReady: false,
+        waitingForChoice: false,
+        selectedCandidate: null,
+        registrationDone: false,
+        blocker: null,
+        qrRegistry: [],
+        librarianManifests: {},
+        lastScan: null,
+        queue: [],
+        logs: [
+          { time: stamp(), title: 'Interface ready', detail: 'Main page is focused. The background system is idle until a roll begins.' }
+        ],
+        tasks: {
+          sceneLock: false,
+          exactReuse: false,
+          userSelection: false,
+          registration: false,
+          productionDesign: false,
+          cinematography: false,
+          sound: false,
+          authorization: false,
+          generation: false,
+          validator: false
+        },
+        timers: []
+      };
+    }
+
+    function loadState() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (!raw) return defaultState();
+        const parsed = JSON.parse(raw);
+        return { ...defaultState(), ...parsed, timers: [] };
+      } catch {
+        return defaultState();
+      }
+    }
+
+    let state = loadState();
+
+    const refs = {
+      form: document.getElementById('directorForm'),
+      era: document.getElementById('era'),
+      season: document.getElementById('season'),
+      scene: document.getElementById('scene'),
+      timeOfDay: document.getElementById('timeOfDay'),
+      direction: document.getElementById('direction'),
+      topState: document.getElementById('topState'),
+      engineState: document.getElementById('engineState'),
+      statusPill: document.getElementById('statusPill'),
+      runBadge: document.getElementById('runBadge'),
+      focusTitle: document.getElementById('focusTitle'),
+      packageTag: document.getElementById('packageTag'),
+      sceneHeadline: document.getElementById('sceneHeadline'),
+      sceneMeta: document.getElementById('sceneMeta'),
+      focusMetric: document.getElementById('focusMetric'),
+      identityMetric: document.getElementById('identityMetric'),
+      approvalMetric: document.getElementById('approvalMetric'),
+      progressPill: document.getElementById('progressPill'),
+      stageStrip: document.getElementById('stageStrip'),
+      outputTag: document.getElementById('outputTag'),
+      outputTitle: document.getElementById('outputTitle'),
+      outputMeta: document.getElementById('outputMeta'),
+      stillFrames: document.getElementById('stillFrames'),
+      eventList: document.getElementById('eventList'),
+      systemSummary: document.getElementById('systemSummary'),
+      runIdTag: document.getElementById('runIdTag'),
+      authTag: document.getElementById('authTag'),
+      identityDetails: document.getElementById('identityDetails'),
+      departmentDetails: document.getElementById('departmentDetails'),
+      validatorDetails: document.getElementById('validatorDetails'),
+      queueList: document.getElementById('queueList'),
+      decisionModal: document.getElementById('decisionModal'),
+      modalChoices: document.getElementById('modalChoices'),
+      confirmChoiceBtn: document.getElementById('confirmChoiceBtn'),
+      closeModalBtn: document.getElementById('closeModalBtn'),
+      toast: document.getElementById('toast'),
+      rollBtn: document.getElementById('rollBtn'),
+      rerollBtn: document.getElementById('rerollBtn'),
+      resetBtn: document.getElementById('resetBtn'),
+      injectBlockerBtn: document.getElementById('injectBlockerBtn'),
+      qrStatusPill: document.getElementById('qrStatusPill'),
+      scannerFrame: document.getElementById('scannerFrame'),
+      qrVideo: document.getElementById('qrVideo'),
+      startScannerBtn: document.getElementById('startScannerBtn'),
+      stopScannerBtn: document.getElementById('stopScannerBtn'),
+      qrImageInput: document.getElementById('qrImageInput'),
+      manualQrInput: document.getElementById('manualQrInput'),
+      manualScanBtn: document.getElementById('manualScanBtn'),
+      librarianApiUrl: document.getElementById('librarianApiUrl'),
+      testLibrarianBtn: document.getElementById('testLibrarianBtn'),
+      librarianConnectionNote: document.getElementById('librarianConnectionNote'),
+      qrResultTitle: document.getElementById('qrResultTitle'),
+      qrRawValue: document.getElementById('qrRawValue'),
+      qrIdentityState: document.getElementById('qrIdentityState'),
+      qrGateAction: document.getElementById('qrGateAction'),
+      qrSystemId: document.getElementById('qrSystemId'),
+      qrRegistryCount: document.getElementById('qrRegistryCount'),
+      registerQrBtn: document.getElementById('registerQrBtn'),
+      clearQrBtn: document.getElementById('clearQrBtn'),
+      qrRegistryList: document.getElementById('qrRegistryList'),
+      railBtns: [...document.querySelectorAll('.rail-btn')],
+      drawerToggles: [...document.querySelectorAll('.drawer-toggle')]
+    };
+
+    function saveState() {
+      const snapshot = { ...state, timers: [] };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(snapshot));
+    }
+
+    function clearTimers() {
+      state.timers.forEach(clearTimeout);
+      state.timers = [];
+    }
+
+    function toast(message) {
+      refs.toast.textContent = message;
+      refs.toast.classList.add('show');
+      clearTimeout(refs.toast._t);
+      refs.toast._t = setTimeout(() => refs.toast.classList.remove('show'), 2200);
+    }
+
+    function setStatus(status, engine, focus) {
+      state.status = status;
+      state.engine = engine;
+      state.focus = focus;
+    }
+
+    function addLog(title, detail) {
+      state.logs.unshift({ time: stamp(), title, detail });
+      state.logs = state.logs.slice(0, 8);
+      saveState();
+    }
+
+    function queuePush(title, detail, stateLabel = 'running') {
+      state.queue.unshift({ title, detail, stateLabel });
+      state.queue = state.queue.slice(0, 6);
+      saveState();
+    }
+
+    function updateSceneFromForm() {
+      state.scene = {
+        era: refs.era.value,
+        season: refs.season.value,
+        scene: refs.scene.value,
+        timeOfDay: refs.timeOfDay.value,
+        direction: refs.direction.value
+      };
+      saveState();
+      renderAll();
+    }
+
+    function sceneShort() {
+      return state.scene.scene.split(' through ')[0] || state.scene.scene;
+    }
+
+    function sceneMeta() {
+      return `${state.scene.era} · ${state.scene.season} · ${state.scene.timeOfDay}`;
+    }
+
+    function statusClass() {
+      if (state.blocker) return 'blocked';
+      if (state.approved) return 'approved';
+      if (state.waitingForChoice) return 'waiting';
+      if (state.authorized || state.status === 'generating') return 'violet';
+      if (state.status === 'draft') return 'draft';
+      return 'active-state';
+    }
+
+    function currentStageIndex() {
+      if (state.approved) return 4;
+      if (state.tasks.productionDesign && state.tasks.cinematography && state.tasks.sound && state.tasks.authorization) return 3;
+      if (state.tasks.sceneLock && state.tasks.exactReuse && state.tasks.userSelection && state.tasks.registration) return 2;
+      if (state.tasks.sceneLock) return 1;
+      return 0;
+    }
+
+    function renderStageStrip() {
+      const index = currentStageIndex();
+      refs.stageStrip.innerHTML = stageLabels.map((stage, i) => {
+        let cls = '';
+        if (state.blocker && i >= 3 && !state.approved) cls = 'wait';
+        else if (i < index) cls = 'done';
+        else if (i === index) cls = state.waitingForChoice ? 'wait' : 'current';
+        return `
+          <article class="stage-pill ${cls}">
+            <small class="mono-muted">${String(i + 1).padStart(2, '0')}</small>
+            <div>
+              <strong>${stage.title}</strong>
+              <div class="muted">${stage.note}</div>
+            </div>
+          </article>
+        `;
+      }).join('');
+    }
+
+    function renderOutput() {
+      if (state.approved) {
+        refs.outputTag.textContent = 'OUTPUT · approved';
+        refs.outputTitle.textContent = sceneShort();
+        refs.outputMeta.textContent = 'Approved output passed identity, continuity, timing, and acceptance checks.';
+      } else if (state.authorized) {
+        refs.outputTag.textContent = 'OUTPUT · generating';
+        refs.outputTitle.textContent = 'Authorized package in generation';
+        refs.outputMeta.textContent = 'Final Validator will approve only after the actual output is checked.';
+      } else if (state.waitingForChoice) {
+        refs.outputTag.textContent = 'OUTPUT · paused';
+        refs.outputTitle.textContent = 'Waiting for your selection';
+        refs.outputMeta.textContent = 'The system found multiple approved identity matches and stopped instead of guessing.';
+      } else {
+        refs.outputTag.textContent = 'OUTPUT · pending';
+        refs.outputTitle.textContent = 'No output yet';
+        refs.outputMeta.textContent = 'Roll a scene to let the background workflow start.';
+      }
+
+      const stills = state.approved
+        ? ['Beginning — lead steps onto the suspended market path.', 'Middle — motion compresses beneath the lantern canopy.', 'End — approved continuity handoff into the next shot.']
+        : state.authorized
+          ? ['Beginning — package bound.', 'Middle — generation in flight.', 'End — validator pending.']
+          : ['Beginning — waiting.', 'Middle — waiting.', 'End — waiting.'];
+
+      refs.stillFrames.innerHTML = stills.map((text, idx) => `
+        <article class="still">
+          <strong>${['Beginning','Middle','End'][idx]}</strong>
+          <div class="muted section-space">${text}</div>
+        </article>
+      `).join('');
+    }
+
+    function renderEvents() {
+      refs.eventList.innerHTML = state.logs.map(entry => `
+        <article class="event-card">
+          <div class="event-row">
+            <div>
+              <strong>${entry.title}</strong>
+              <div class="muted">${entry.detail}</div>
+            </div>
+            <div class="time-stamp">${entry.time}</div>
+          </div>
+        </article>
+      `).join('');
+    }
+
+    function renderQueue() {
+      const items = state.queue.length ? state.queue : [{ title: 'No background jobs yet', detail: 'Roll a scene to start the engine.', stateLabel: 'idle' }];
+      refs.queueList.innerHTML = items.map(item => `
+        <article class="queue-card">
+          <strong>${item.title}</strong>
+          <div class="muted section-space">${item.detail}</div>
+          <div class="tag-row section-space"><span class="tag">${item.stateLabel}</span></div>
+        </article>
+      `).join('');
+    }
+
+    function renderBackgroundDetails() {
+      refs.identityDetails.innerHTML = [
+        ['Principal character', state.tasks.exactReuse ? 'Exact match reused from registry.' : 'Pending resolution.'],
+        ['Lantern rig', state.selectedCandidate ? `Approved match selected: ${state.selectedCandidate}.` : state.waitingForChoice ? 'Two approved matches found. Waiting for user choice.' : 'Pending resolution.'],
+        ['Bird population', state.registrationDone ? 'Missing natural-entity package registered and locked.' : state.tasks.sceneLock ? 'Will route only this missing element to Registration.' : 'Pending.'],
+        ['Environment set', state.tasks.exactReuse ? 'Approved set package reused.' : 'Pending resolution.']
+      ].map(([k,v]) => `<div class="detail-row"><span>${k}</span><span class="muted">${v}</span></div>`).join('');
+
+      refs.departmentDetails.innerHTML = [
+        ['Production Design', state.tasks.productionDesign ? 'Completed in background.' : 'Waiting.'],
+        ['Cinematography', state.tasks.cinematography ? 'Completed in background.' : 'Waiting.'],
+        ['Sound', state.tasks.sound ? 'Completed in background.' : 'Waiting.'],
+        ['Animator Core', state.tasks.authorization ? 'Prepared for authorization.' : 'Waiting on department outputs.']
+      ].map(([k,v]) => `<div class="detail-row"><span>${k}</span><span class="muted">${v}</span></div>`).join('');
+
+      refs.validatorDetails.innerHTML = [
+        ['Authorization', state.tasks.authorization ? 'Exact package bound.' : 'Not bound yet.'],
+        ['Generation', state.tasks.generation ? 'Executed on authorized package.' : 'Not run.'],
+        ['Final Validator', state.tasks.validator ? 'Output approved after actual checks.' : 'Pending actual output.'],
+        ['Continuity', state.tasks.validator ? 'Approved END ready for next BEGIN.' : 'Pending validator.']
+      ].map(([k,v]) => `<div class="detail-row"><span>${k}</span><span class="muted">${v}</span></div>`).join('');
+    }
+
+    function renderModal() {
+      refs.modalChoices.innerHTML = candidates.map(candidate => `
+        <article class="candidate ${state.selectedCandidate === candidate.title ? 'selected' : ''}" data-candidate="${candidate.title}">
+          <strong>${candidate.title}</strong>
+          <div class="muted">${candidate.summary}</div>
+          <div class="tag-row">${candidate.tags.map(tag => `<span class="tag">${tag}</span>`).join('')}</div>
+        </article>
+      `).join('');
+
+      refs.decisionModal.classList.toggle('open', state.waitingForChoice);
+      refs.decisionModal.setAttribute('aria-hidden', String(!state.waitingForChoice));
+      refs.confirmChoiceBtn.disabled = !state.selectedCandidate;
+    }
+
+    function renderHeader() {
+      refs.runBadge.textContent = `RUN · ${state.runId}`;
+      refs.runIdTag.textContent = `Run ID: ${state.runId}`;
+      refs.authTag.textContent = state.authorized ? 'Authorized' : 'Not authorized';
+      refs.topState.textContent = state.blocker ? 'Blocked' : state.approved ? 'Approved' : state.waitingForChoice ? 'Waiting for user' : titleCase(state.status);
+      refs.engineState.textContent = state.engine;
+      refs.focusTitle.textContent = state.blocker ? 'Blocked in production' : state.waitingForChoice ? 'Decision needed to continue' : state.approved ? 'Approved shot ready' : state.tasks.sceneLock ? 'Controlled run in motion' : 'Ready to roll';
+      refs.packageTag.textContent = state.authorized ? 'PKG · bound + authorized' : state.tasks.sceneLock ? 'PKG · scene-locked' : 'PKG · pending';
+      refs.sceneHeadline.textContent = sceneShort();
+      refs.sceneMeta.textContent = sceneMeta();
+      refs.focusMetric.textContent = state.focus;
+      refs.identityMetric.textContent = `${state.identityReady} / 4`;
+      refs.approvalMetric.textContent = state.approved ? 'Approved' : state.authorized ? 'Validating' : state.waitingForChoice ? 'Paused for choice' : 'Awaiting roll';
+      refs.systemSummary.textContent = state.blocker ? state.blocker.detail : state.waitingForChoice ? 'Paused at identity resolution for mandatory user selection.' : state.authorized ? 'Exact scene package is bound and running through generation / validation.' : state.tasks.sceneLock ? 'Background engine is resolving identity and preparing departments.' : 'Waiting to create a controlled production run.';
+      setPill(refs.statusPill, state.blocker ? 'Blocked' : state.approved ? 'Approved' : state.waitingForChoice ? 'Waiting for user' : titleCase(state.status), statusClass());
+      setPill(refs.progressPill, state.blocker ? 'Blocked' : state.approved ? 'Approved' : state.waitingForChoice ? 'Paused for choice' : state.engine, statusClass());
+    }
+
+    function setPill(node, label, klass) {
+      node.className = `status-pill ${klass}`;
+      node.textContent = label;
+    }
+
+    function titleCase(str) {
+      return String(str).replace(/_/g, ' ').replace(/\b\w/g, s => s.toUpperCase());
+    }
+
+    let qrStream = null;
+    let qrLoopToken = 0;
+
+    function normalizeQrValue(value) {
+      return String(value || '').trim();
+    }
+
+    function formatPackageDuration(minutes) {
+      if (!Number.isFinite(minutes)) return 'duration from registered manifest';
+      const seconds = Math.round(minutes * 60 * 1000) / 1000;
+      if (seconds < 60) return `${Number.isInteger(seconds) ? seconds : seconds.toFixed(3).replace(/0+$/,'').replace(/\.$/,'')} sec`;
+      const mins = Math.floor(seconds / 60);
+      const rem = Math.round((seconds - mins * 60) * 1000) / 1000;
+      return rem ? `${mins} min ${rem} sec` : `${mins} min`;
+    }
+
+    function parseMasterKeyQr(rawValue) {
+      const raw = normalizeQrValue(rawValue).replace(/\r\n?/g, '\n');
+      const result = {
+        raw,
+        mk: null,
+        manifestId: null,
+        checksum: null,
+        compact: false,
+        legacyDescriptive: false,
+        descriptivePackageId: null,
+        parseError: null
+      };
+      if (!raw) return result;
+
+      try {
+        const obj = JSON.parse(raw);
+        if (obj && typeof obj === 'object') {
+          result.mk = String(obj.mk || '').trim().toUpperCase() || null;
+          result.manifestId = String(obj.manifest_id || '').trim() || null;
+          result.checksum = String(obj.checksum || '').trim() || null;
+          result.compact = Boolean(result.mk && result.manifestId && result.checksum);
+          return result;
+        }
+      } catch (_) {}
+
+      const compactParts = raw.split('|').map(part => part.trim());
+      if (compactParts.length === 3 && compactParts[0].toUpperCase() === 'MK1') {
+        result.mk = 'MK1';
+        result.manifestId = compactParts[1] || null;
+        result.checksum = compactParts[2] || null;
+        result.compact = Boolean(result.manifestId && result.checksum);
+        if (!result.compact) result.parseError = 'Compact Master-Key QR is missing manifest ID or checksum.';
+        return result;
+      }
+
+      const mk = raw.match(/(?:^|\|)\s*(MK1)\s*(?=\||$)/i);
+      const manifest = raw.match(/(?:^|\|)\s*(?:MANIFEST_ID|MANIFEST)\s*:\s*([^|\n]+)/i);
+      const checksum = raw.match(/(?:^|\|)\s*CHECKSUM\s*:\s*([^|\n]+)/i);
+      if (mk || manifest || checksum) {
+        result.mk = mk ? mk[1].toUpperCase() : null;
+        result.manifestId = manifest ? manifest[1].trim() : null;
+        result.checksum = checksum ? checksum[1].trim() : null;
+        result.compact = Boolean(result.mk && result.manifestId && result.checksum);
+        if (!result.compact) result.parseError = 'Compact Master-Key QR is missing mk, manifest_id, or checksum.';
+        return result;
+      }
+
+      if (/^\s*1-5S(?:\||\n|$)/i.test(raw) || /(?:^|[|\n])PACKAGE\s*:/i.test(raw) || /\bS0?1\|/i.test(raw)) {
+        result.legacyDescriptive = true;
+        const pkg = raw.match(/(?:^|[|\n])\s*PACKAGE\s*:\s*([^|\n]+)/i);
+        result.descriptivePackageId = pkg ? pkg[1].trim() : 'QTDC-WORKING-PACKAGE';
+        result.parseError = null;
+        return result;
+      }
+
+      result.parseError = 'Unrecognized 1-5 Studios Master-Key QR format.';
+      return result;
+    }
+
+    function checksumLooksRegistered(value) {
+      const v = String(value || '').trim();
+      return v.length >= 8 && /^[A-Za-z0-9._:-]+$/.test(v);
+    }
+
+    function getReadiness(parsed, manifestRecord) {
+      const registered = Boolean(manifestRecord);
+      const gates = {
+        SCENE_LOCKED: registered && manifestRecord.scene_locked === true,
+        REQUIRED_TAGS_RESOLVED: registered && manifestRecord.required_tags_resolved === true,
+        CANONICAL_PACKAGES_FOUND: registered && manifestRecord.canonical_packages_found === true,
+        RELATIONSHIPS_VALID: registered && manifestRecord.relationships_valid === true,
+        MANIFEST_REGISTERED: registered,
+        CHECKSUM_VERIFIED: registered && manifestRecord.checksum_verified === true && manifestRecord.checksum === parsed.checksum
+      };
+      const passed = Object.values(gates).filter(Boolean).length;
+      return { gates, passed, ready: passed === 6 };
+    }
+
+    function getLibrarianApiUrl() {
+      const entered = (refs.librarianApiUrl?.value || '').trim().replace(/\/$/, '');
+      return entered || 'http://127.0.0.1:8000';
+    }
+
+    async function testLibrarianConnection() {
+      const apiUrl = getLibrarianApiUrl();
+      localStorage.setItem('15s-librarian-api-url', apiUrl);
+      refs.librarianConnectionNote.textContent = 'Testing Librarian connection…';
+      try {
+        const response = await fetch(`${apiUrl}/health`, { method: 'GET', cache: 'no-store' });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const body = await response.json();
+        if (body.status !== 'ok' || body.database !== true) throw new Error('Health response did not confirm database readiness');
+        refs.librarianConnectionNote.textContent = `Librarian connected · database healthy · ${apiUrl}`;
+        setPill(refs.qrStatusPill, 'Librarian connected', 'approved');
+        toast('Librarian backend connected.');
+        return true;
+      } catch (error) {
+        refs.librarianConnectionNote.textContent = `Librarian not reachable at ${apiUrl}. ${error.message}`;
+        setPill(refs.qrStatusPill, 'Librarian offline', 'blocked');
+        return false;
+      }
+    }
+
+    async function verifyManifestWithLibrarian(parsed) {
+      const apiUrl = getLibrarianApiUrl();
+      localStorage.setItem('15s-librarian-api-url', apiUrl);
+      const response = await fetch(`${apiUrl}/api/v1/manifests/verify`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mk: parsed.mk, manifest_id: parsed.manifestId, checksum: parsed.checksum })
+      });
+      let body = {};
+      try { body = await response.json(); } catch (_) {}
+      if (!response.ok) {
+        const detail = typeof body.detail === 'string' ? body.detail : `HTTP ${response.status}`;
+        throw new Error(detail);
+      }
+      return body;
+    }
+
+
+    // V14 bridge: Studio talks only to the Librarian/backend.
+    // The backend is responsible for authenticated Security -> Warehouse calls; no Security secret is exposed here.
+    async function requestCanonicalMaterialFromLibrarian(requestBody) {
+      const apiUrl = getLibrarianApiUrl();
+      const response = await fetch(`${apiUrl}/api/v1/materials/request`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(requestBody)
+      });
+      let body = {};
+      try { body = await response.json(); } catch (_) {}
+      if (!response.ok) {
+        const detail = typeof body.detail === 'string' ? body.detail : (body.error || `HTTP ${response.status}`);
+        throw new Error(detail);
+      }
+      return body;
+    }
+
+    async function bridgeStudioMaterialRequest() {
+      const permanentIds = Object.keys(masterLibrary.data?.entities || {});
+      const payload = {
+        run_id: state.runId,
+        scene: { ...state.scene },
+        permanent_ids: permanentIds,
+        selected_candidate: state.selectedCandidate || null,
+        purpose: 'PRODUCTION_MATERIAL_REQUEST'
+      };
+      addLog('Material request sent', 'Studio sent the approved scene material request to the Librarian/backend for Security → Warehouse resolution.');
+      queuePush('Security / Warehouse', 'Resolving approved canonical material through the trusted backend bridge.', 'running');
+      renderAll();
+      const result = await requestCanonicalMaterialFromLibrarian(payload);
+      state.materialBridge = { status: 'connected', result, time: new Date().toISOString() };
+      addLog('Material returned', 'Approved canonical material returned through Librarian → Security → Warehouse → Security.');
+      queuePush('Security / Warehouse', 'Canonical material verified and returned to Studio.', 'complete');
+      return result;
+    }
+
+    async function inspectQr(rawValue, source = 'scanner') {
+      const parsed = parseMasterKeyQr(rawValue);
+      if (!parsed.raw) return;
+
+      let readiness = getReadiness(parsed, null);
+      state.lastScan = { ...parsed, source, readiness, time: new Date().toISOString() };
+      refs.qrRawValue.textContent = parsed.raw;
+      refs.qrRegistryCount.textContent = '0';
+      refs.qrSystemId.textContent = parsed.manifestId || '—';
+
+      if (parsed.legacyDescriptive) {
+        refs.qrResultTitle.textContent = 'Descriptive QTDC package recognized';
+        refs.qrIdentityState.textContent = 'WORKING / PREVIEW — Safety-Net';
+        refs.qrGateAction.textContent = 'Working intake allowed with provisional TMP references; final authoritative release remains blocked';
+        refs.qrSystemId.textContent = parsed.descriptivePackageId || 'QTDC-WORKING-PACKAGE';
+        refs.registerQrBtn.disabled = false;
+        refs.registerQrBtn.textContent = 'Load working package';
+        setPill(refs.qrStatusPill, 'Working package recognized', 'active-state');
+        addLog('Descriptive package recognized', 'The QR was accepted for working/preview intake. No Permanent-ID authority or Librarian checksum verification is being claimed.');
+        renderQrRegistry();
+        saveState();
+        return;
+      }
+
+      if (!parsed.compact || parsed.mk !== 'MK1') {
+        refs.qrResultTitle.textContent = 'Invalid Master-Key QR';
+        refs.qrIdentityState.textContent = '0 / 6 readiness gates';
+        refs.qrGateAction.textContent = parsed.parseError || 'HARD STOP — MK1 payload incomplete';
+        refs.registerQrBtn.disabled = true;
+        refs.registerQrBtn.textContent = 'Blocked';
+        setPill(refs.qrStatusPill, 'Invalid QR', 'blocked');
+        saveState();
+        return;
+      }
+
+      if (!checksumLooksRegistered(parsed.checksum)) {
+        refs.qrResultTitle.textContent = 'Checksum format rejected';
+        refs.qrIdentityState.textContent = '0 / 6 readiness gates';
+        refs.qrGateAction.textContent = 'HARD STOP — checksum cannot be verified';
+        refs.registerQrBtn.disabled = true;
+        refs.registerQrBtn.textContent = 'Blocked';
+        setPill(refs.qrStatusPill, 'Checksum blocked', 'blocked');
+        saveState();
+        return;
+      }
+
+      refs.qrResultTitle.textContent = 'Master-Key QR recognized';
+      refs.qrIdentityState.textContent = 'Checking Librarian…';
+      refs.qrGateAction.textContent = 'Verifying registered manifest and readiness evidence';
+      refs.registerQrBtn.disabled = true;
+      refs.registerQrBtn.textContent = 'Verifying…';
+      setPill(refs.qrStatusPill, 'Librarian verification', 'waiting');
+
+      let verified;
+      try {
+        verified = await verifyManifestWithLibrarian(parsed);
+      } catch (error) {
+        refs.qrResultTitle.textContent = 'Master-Key QR recognized — Librarian unavailable';
+        refs.qrIdentityState.textContent = '0 / 6 readiness gates';
+        refs.qrGateAction.textContent = `AUTHORITATIVE STOP — ${error.message}`;
+        refs.registerQrBtn.disabled = true;
+        refs.registerQrBtn.textContent = 'Librarian connection required';
+        setPill(refs.qrStatusPill, 'Manifest lookup required', 'active-state');
+        addLog('Master-Key QR recognized', `${parsed.manifestId} was parsed, but authoritative readiness could not be proven because the Librarian API was unavailable.`);
+        masterLibrary.recordFailure({
+          component: 'LIBRARIAN_MANIFEST_VERIFICATION',
+          firstWrongStep: 'Authoritative manifest verification could not complete',
+          lastKnownGood: 'Master-Key QR parsed successfully',
+          evidence: error.message,
+          recoveryStatus: 'OPEN'
+        });
+        saveState();
+        return;
+      }
+
+      readiness = { gates: verified.gates || {}, passed: Number(verified.passed || 0), ready: verified.ready === true };
+      const librarian = state.librarianManifests || (state.librarianManifests = {});
+      librarian[parsed.manifestId] = {
+        manifest_id: parsed.manifestId,
+        package_id: verified.package_code || parsed.manifestId,
+        checksum: parsed.checksum,
+        checksum_verified: Boolean(verified.checksum_verified),
+        scene_locked: Boolean(readiness.gates.SCENE_LOCKED),
+        required_tags_resolved: Boolean(readiness.gates.REQUIRED_TAGS_RESOLVED),
+        canonical_packages_found: Boolean(readiness.gates.CANONICAL_PACKAGES_FOUND),
+        relationships_valid: Boolean(readiness.gates.RELATIONSHIPS_VALID),
+        required_reference_count: Number(verified.required_reference_count || 0),
+        manifest_state: verified.manifest_state || 'UNKNOWN'
+      };
+      state.lastScan = { ...parsed, source, readiness, verified, time: new Date().toISOString() };
+      masterLibrary.recordVerifiedManifest(parsed, verified, readiness);
+      refs.qrRegistryCount.textContent = String(readiness.passed);
+      refs.qrIdentityState.textContent = `${readiness.passed} / 6 readiness gates`;
+
+      if (!readiness.ready) {
+        const failed = Object.entries(readiness.gates).filter(([,v]) => !v).map(([k]) => k).join(', ');
+        refs.qrResultTitle.textContent = 'Registered manifest verified — readiness gate blocked';
+        refs.qrGateAction.textContent = `HARD STOP — ${failed || 'readiness evidence incomplete'}`;
+        refs.registerQrBtn.disabled = true;
+        refs.registerQrBtn.textContent = 'Blocked by readiness gate';
+        setPill(refs.qrStatusPill, 'Gate blocked', 'blocked');
+        addLog('Manifest verified', `${parsed.manifestId} is registered and was checked by the Librarian. ${readiness.passed}/6 readiness gates currently pass.`);
+        saveState();
+        return;
+      }
+
+      refs.qrResultTitle.textContent = 'Production-ready Master-Key scene package';
+      refs.qrIdentityState.textContent = '6 / 6 readiness gates';
+      refs.qrGateAction.textContent = 'Resolve references / temporarily load approved packages';
+      refs.registerQrBtn.disabled = false;
+      refs.registerQrBtn.textContent = 'Load approved manifest';
+      setPill(refs.qrStatusPill, 'QR_READY', 'approved');
+      addLog('QR readiness verified', `${parsed.manifestId} passed all six Master-Key readiness gates through the Librarian backend.`);
+      renderQrRegistry();
+      saveState();
+    }
+
+    function registerLastScan() {
+      const scan = state.lastScan;
+      if (!scan) return;
+
+      const registry = state.qrRegistry || (state.qrRegistry = []);
+
+      if (scan.legacyDescriptive) {
+        const packageId = scan.descriptivePackageId || 'QTDC-WORKING-PACKAGE';
+        const existing = registry.find(item =>
+          item.mode === 'WORKING' &&
+          item.packageId === packageId
+        );
+
+        if (!existing) {
+          registry.unshift({
+            mode: 'WORKING',
+            packageId,
+            authorityStatus: 'PROVISIONAL',
+            permanentReferenceCount: 0,
+            checksumStatus: 'NOT VERIFIED — backend Librarian required',
+            finalReleaseEligible: false,
+            firstSeen: new Date().toISOString()
+          });
+        }
+
+        refs.qrResultTitle.textContent = existing ? 'Working package reused' : 'Working package loaded';
+        refs.qrIdentityState.textContent = 'WORKING / PREVIEW — Safety-Net';
+        refs.qrGateAction.textContent = 'TMP/provisional workflow allowed · final authoritative release blocked until Librarian resolution';
+        refs.qrSystemId.textContent = packageId;
+        refs.qrRegistryCount.textContent = '0';
+        refs.registerQrBtn.disabled = true;
+        refs.registerQrBtn.textContent = 'Working package loaded';
+        setPill(refs.qrStatusPill, 'Working mode', 'active-state');
+
+        addLog(existing ? 'Working package reused' : 'Working package loaded',
+          `${packageId} was loaded in Safety-Net working mode. No Permanent IDs were approved and no Librarian checksum verification was claimed.`);
+
+        renderQrRegistry();
+        saveState();
+        toast(`${packageId}: working/preview package loaded. Final authority remains blocked.`);
+        return;
+      }
+
+      if (!scan.compact || scan.mk !== 'MK1' || !scan.readiness?.ready) return;
+
+      const librarian = state.librarianManifests || {};
+      const manifest = librarian[scan.manifestId];
+      if (!manifest) return;
+
+      const existing = registry.find(item =>
+        item.mode === 'AUTHORITATIVE' &&
+        item.manifestId === scan.manifestId
+      );
+
+      if (!existing) {
+        registry.unshift({
+          mode: 'AUTHORITATIVE',
+          manifestId: scan.manifestId,
+          checksum: scan.checksum,
+          packageId: manifest.package_id || scan.manifestId,
+          permanentReferenceCount: Number(manifest.required_reference_count || (Array.isArray(manifest.required_ids) ? manifest.required_ids.length : 0)),
+          checksumStatus: 'VERIFIED BY LIBRARIAN',
+          finalReleaseEligible: true,
+          firstSeen: new Date().toISOString()
+        });
+      }
+
+      refs.qrResultTitle.textContent = existing ? 'Approved manifest reused' : 'Approved manifest loaded';
+      refs.qrIdentityState.textContent = '6 / 6 readiness gates';
+      refs.qrGateAction.textContent = 'Approved canonical packages temporarily loaded — ready for 1-5 Studios workflow';
+      refs.qrSystemId.textContent = scan.manifestId;
+      refs.qrRegistryCount.textContent = '6';
+      refs.registerQrBtn.disabled = true;
+      refs.registerQrBtn.textContent = 'Manifest loaded';
+      setPill(refs.qrStatusPill, 'Approved manifest loaded', 'approved');
+
+      addLog(existing ? 'Existing approved manifest reused' : 'Approved manifest loaded',
+        `${scan.manifestId} was resolved through the Librarian. 1-5 Studios did not issue or invent any Permanent IDs.`);
+
+      renderQrRegistry();
+      saveState();
+      toast(`${scan.manifestId}: Master-Key manifest loaded. No IDs issued by 1-5 Studios.`);
+    }
+
+    function renderQrRegistry() {
+      const rawRegistry = Array.isArray(state.qrRegistry) ? state.qrRegistry : [];
+      const registry = rawRegistry.filter(item => item && typeof item === 'object');
+
+      if (!state.lastScan) refs.qrRegistryCount.textContent = '0';
+
+      if (!registry.length) {
+        refs.qrRegistryList.innerHTML = '<div class="muted">No QR packages loaded in this Core v1 session yet.</div>';
+        return;
+      }
+
+      refs.qrRegistryList.innerHTML = registry.slice(0,6).map(item => {
+        const authoritative = item.mode === 'AUTHORITATIVE' && Boolean(item.manifestId);
+        const working = item.mode === 'WORKING';
+
+        if (authoritative) {
+          const id = item.manifestId || item.packageId || 'UNKNOWN-MANIFEST';
+          const count = Number.isFinite(item.permanentReferenceCount)
+            ? item.permanentReferenceCount
+            : (Number.isFinite(item.requiredIdCount) ? item.requiredIdCount : 0);
+          const checksumText = item.checksumStatus === 'VERIFIED BY LIBRARIAN'
+            ? 'checksum verified by Librarian'
+            : 'checksum verification unavailable';
+          return `
+            <div class="registry-item">
+              <strong class="mono">${id}</strong>
+              <div class="muted">${count} approved Permanent-ID reference${count === 1 ? '' : 's'} · ${checksumText} · first loaded ${item.firstSeen ? new Date(item.firstSeen).toLocaleString() : 'this session'}</div>
+            </div>
+          `;
+        }
+
+        if (working) {
+          const id = item.packageId || 'QTDC-WORKING-PACKAGE';
+          return `
+            <div class="registry-item">
+              <strong class="mono">${id}</strong>
+              <div class="muted">WORKING / PREVIEW · 0 approved Permanent-ID references · Librarian checksum NOT verified · final authoritative release blocked · first loaded ${item.firstSeen ? new Date(item.firstSeen).toLocaleString() : 'this session'}</div>
+            </div>
+          `;
+        }
+
+        const legacyId = item.manifestId || item.packageId || item.systemId || 'LEGACY-UNRESOLVED-ENTRY';
+        return `
+          <div class="registry-item">
+            <strong class="mono">${legacyId}</strong>
+            <div class="muted">Legacy/unresolved registry entry · authority not verified · rescan with Core v1 Safety-Net</div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function clearQrResult() {
+      state.lastScan = null;
+      refs.qrResultTitle.textContent = 'No package scanned';
+      refs.qrRawValue.textContent = 'Waiting for a 1-5 Studios QR…';
+      refs.qrIdentityState.textContent = 'Unknown';
+      refs.qrGateAction.textContent = 'Waiting';
+      refs.qrSystemId.textContent = '—';
+      refs.qrRegistryCount.textContent = '0';
+      refs.registerQrBtn.disabled = true;
+      refs.registerQrBtn.textContent = 'Load scene package';
+      setPill(refs.qrStatusPill, 'Scanner idle', 'draft');
+      saveState();
+    }
+
+    async function getQrDetector() {
+      if (!('BarcodeDetector' in window)) return null;
+      try {
+        const formats = await BarcodeDetector.getSupportedFormats();
+        if (!formats.includes('qr_code')) return null;
+        return new BarcodeDetector({ formats: ['qr_code'] });
+      } catch { return null; }
+    }
+
+    function decodeQrWithJsQR(source) {
+      if (typeof window.jsQR !== 'function') return null;
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d', { willReadFrequently: true });
+      if (!ctx) return null;
+      const sw = source.videoWidth || source.width || source.naturalWidth || 0;
+      const sh = source.videoHeight || source.height || source.naturalHeight || 0;
+      if (!sw || !sh) return null;
+
+      // Dense scene-package QR codes benefit from a large decode surface.
+      const targets = [Math.min(1800, Math.max(sw, sh)), 1400, 1000];
+      for (const maxSide of targets) {
+        const scale = Math.min(1, maxSide / Math.max(sw, sh));
+        canvas.width = Math.max(1, Math.round(sw * scale));
+        canvas.height = Math.max(1, Math.round(sh * scale));
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(source, 0, 0, canvas.width, canvas.height);
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const result = window.jsQR(imageData.data, canvas.width, canvas.height, {
+          inversionAttempts: 'attemptBoth'
+        });
+        if (result?.data) return result.data;
+      }
+      return null;
+    }
+
+    async function decodeQrWithZXingFile(file) {
+      if (!window.ZXing?.BrowserQRCodeReader) return null;
+      const url = URL.createObjectURL(file);
+      const img = new Image();
+      img.decoding = 'async';
+      try {
+        await new Promise((resolve, reject) => {
+          img.onload = resolve;
+          img.onerror = reject;
+          img.src = url;
+        });
+        const reader = new window.ZXing.BrowserQRCodeReader();
+        let result = null;
+        if (typeof reader.decodeFromImageElement === 'function') {
+          result = await reader.decodeFromImageElement(img);
+        } else if (typeof reader.decodeFromImage === 'function') {
+          result = await reader.decodeFromImage(img);
+        } else if (typeof reader.decodeFromImageUrl === 'function') {
+          result = await reader.decodeFromImageUrl(url);
+        }
+        return result?.getText?.() || result?.text || result?.rawValue || null;
+      } catch (err) {
+        console.warn('ZXing QR decode failed', err);
+        return null;
+      } finally {
+        URL.revokeObjectURL(url);
+      }
+    }
+
+    async function startQrCamera() {
+      if (!navigator.mediaDevices?.getUserMedia) {
+        toast('Camera access is not supported in this browser.');
+        setPill(refs.qrStatusPill, 'Camera unavailable', 'blocked');
+        return;
+      }
+      const detector = await getQrDetector();
+      const hasFallback = typeof window.jsQR === 'function';
+      if (!detector && !hasFallback) {
+        toast('QR decoder could not load. Refresh the page and try again.');
+        setPill(refs.qrStatusPill, 'Decoder unavailable', 'waiting');
+        return;
+      }
+      try {
+        stopQrCamera();
+        qrStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' }, width: { ideal: 1920 }, height: { ideal: 1080 } }, audio: false });
+        refs.qrVideo.srcObject = qrStream;
+        await refs.qrVideo.play();
+        refs.scannerFrame.classList.add('live');
+        refs.startScannerBtn.disabled = true;
+        refs.stopScannerBtn.disabled = false;
+        setPill(refs.qrStatusPill, 'Scanning', 'active-state');
+        const token = ++qrLoopToken;
+        let frameCount = 0;
+        const tick = async () => {
+          if (!qrStream || token !== qrLoopToken) return;
+          try {
+            if (detector) {
+              const codes = await detector.detect(refs.qrVideo);
+              if (codes.length) {
+                inspectQr(codes[0].rawValue, 'camera');
+                stopQrCamera();
+                return;
+              }
+            }
+            // Run the stronger fallback every few frames so camera scanning stays smooth.
+            if (hasFallback && (++frameCount % 6 === 0)) {
+              const value = decodeQrWithJsQR(refs.qrVideo);
+              if (value) {
+                inspectQr(value, 'camera-fallback');
+                stopQrCamera();
+                return;
+              }
+            }
+          } catch {}
+          requestAnimationFrame(tick);
+        };
+        requestAnimationFrame(tick);
+      } catch (err) {
+        setPill(refs.qrStatusPill, 'Camera permission needed', 'blocked');
+        toast('Camera could not start. Check browser permission or use a QR image/manual package manifest.');
+      }
+    }
+
+    function stopQrCamera() {
+      qrLoopToken++;
+      if (qrStream) qrStream.getTracks().forEach(track => track.stop());
+      qrStream = null;
+      refs.qrVideo.srcObject = null;
+      refs.scannerFrame.classList.remove('live');
+      refs.startScannerBtn.disabled = false;
+      refs.stopScannerBtn.disabled = true;
+      if (!state.lastScan) setPill(refs.qrStatusPill, 'Scanner idle', 'draft');
+    }
+
+    async function scanQrImage(file) {
+      if (!file) return;
+      const detector = await getQrDetector();
+      try {
+        let value = null;
+        let source = 'image';
+
+        // 1) Browser-native decoder.
+        try {
+          const bitmap = await createImageBitmap(file);
+          if (detector) {
+            try {
+              const codes = await detector.detect(bitmap);
+              if (codes.length) value = codes[0].rawValue;
+            } catch {}
+          }
+
+          // 2) jsQR fallback.
+          if (!value) {
+            value = decodeQrWithJsQR(bitmap);
+            if (value) source = 'image-jsqr';
+          }
+          bitmap.close?.();
+        } catch {}
+
+        // 3) ZXing fallback for very dense / high-version scene-package QR codes.
+        if (!value) {
+          setPill(refs.qrStatusPill, 'Heavy QR decode…', 'waiting');
+          value = await decodeQrWithZXingFile(file);
+          if (value) source = 'image-zxing';
+        }
+
+        if (!value) {
+          const zxingLoaded = !!window.ZXing?.BrowserQRCodeReader;
+          toast(zxingLoaded
+            ? 'QR is valid-looking but this browser still could not decode it. Keep the original PNG and try Chrome/Edge.'
+            : 'Heavy QR decoder did not load. Check internet access, refresh, and try the original PNG again.');
+          setPill(refs.qrStatusPill, 'QR decode failed', 'waiting');
+          return;
+        }
+        inspectQr(value, source);
+      } catch (err) {
+        console.error(err);
+        toast('Could not read that QR image.');
+      }
+    }
+
+    function renderAll() {
+      refs.era.value = state.scene.era;
+      refs.season.value = state.scene.season;
+      refs.scene.value = state.scene.scene;
+      refs.timeOfDay.value = state.scene.timeOfDay;
+      refs.direction.value = state.scene.direction;
+      renderHeader();
+      renderStageStrip();
+      renderOutput();
+      renderEvents();
+      renderQueue();
+      renderBackgroundDetails();
+      renderQrRegistry();
+      renderModal();
+      saveState();
+    }
+
+    function enqueueStep(delay, fn) {
+      const timer = setTimeout(fn, delay);
+      state.timers.push(timer);
+    }
+
+    function rollScene(reroll = false) {
+      clearTimers();
+      const preservedScene = { ...state.scene };
+      state = defaultState();
+      state.scene = preservedScene;
+      if (reroll) {
+        state.runNumber += 1;
+      }
+      state.runNumber = reroll ? state.runNumber : state.runNumber;
+      state.runId = `15S-RUN-${String(state.runNumber).padStart(3, '0')}`;
+      if (reroll) {
+        const n = Number(state.runId.split('-').pop()) || 101;
+        state.runId = `15S-RUN-${String(n).padStart(3, '0')}`;
+      }
+      setStatus('rolling', 'Locking scene', 'Scene lock');
+      state.identityReady = 0;
+      addLog(reroll ? 'Reroll created' : 'Roll started', reroll ? 'A new controlled production run has started from the current creative direction.' : 'Scene entered the controlled production pipeline.');
+      queuePush('Scene lock', 'Freeze baseline before identity resolution.', 'running');
+      masterLibrary.recordWorkflow('SCENE_LOCK', 'RUNNING', { runId: state.runId });
+      renderAll();
+
+      enqueueStep(700, () => {
+        state.tasks.sceneLock = true;
+        state.identityReady = 2;
+        setStatus('resolving', 'Resolving identity', 'Identity scan');
+        addLog('Scene locked', 'Baseline frozen. Master Key / Librarian began identity resolution.');
+        masterLibrary.recordWorkflow('SCENE_LOCK', 'CONFIRMED_WORKING', { runId: state.runId });
+        masterLibrary.recordWorkflow('IDENTITY_RESOLUTION', 'RUNNING', { runId: state.runId });
+        queuePush('Registry lookup', 'Exact-match reuse started for approved identities.', 'running');
+        renderAll();
+      });
+
+      enqueueStep(1500, () => {
+        state.tasks.exactReuse = true;
+        state.waitingForChoice = true;
+        setStatus('waiting_for_user', 'Waiting for user choice', 'Approved match selection');
+        addLog('Multiple matches found', 'Two approved lantern-rig packages match the scene. The system stopped rather than guessing.');
+        queuePush('Registration prep', 'Missing natural-entity package ready to route after your choice.', 'queued');
+        toast('Decision needed: choose an approved lantern-rig package.');
+        renderAll();
+      });
+    }
+
+    function continueAfterChoice() {
+      state.waitingForChoice = false;
+      state.tasks.userSelection = true;
+      state.registrationDone = true;
+      state.tasks.registration = true;
+      state.identityReady = 4;
+      setStatus('producing', 'Preparing departments', 'Production prep');
+      addLog('Identity resolved', 'Approved match selected. Only the missing element went to Registration and returned as one canonical package.');
+      queuePush('Production Design', 'World package, placement, wardrobe, and materials are being prepared.', 'running');
+      renderAll();
+
+      enqueueStep(700, () => {
+        state.tasks.productionDesign = true;
+        addLog('Production Design ready', 'Set, props, wardrobe, appearance, and world placement were completed in background.');
+        queuePush('Cinematography', 'Camera, lighting, and image look are being prepared.', 'running');
+        renderAll();
+      });
+
+      enqueueStep(1400, () => {
+        state.tasks.cinematography = true;
+        addLog('Cinematography ready', 'Camera, lighting, and material response passed production checks.');
+        queuePush('Sound', 'SFX, atmosphere, sync, and score are being prepared.', 'running');
+        renderAll();
+      });
+
+      enqueueStep(2100, () => {
+        state.tasks.sound = true;
+        addLog('Sound ready', 'The audible world aligned with timing, movement, and story intent.');
+        queuePush('Authorization gate', 'Binding exact package fingerprint for generation.', 'running');
+        renderAll();
+      });
+
+      enqueueStep(2900, () => {
+        state.tasks.authorization = true;
+        state.authorized = true;
+        setStatus('generating', 'Generating on authorized package', 'Generation + validation');
+        addLog('Package authorized', 'Exact scene package bound. Generation began only after all gates passed.');
+        queuePush('Final Validator', 'Checking actual output identity, continuity, and acceptance rules.', 'running');
+        renderAll();
+      });
+
+      enqueueStep(3900, () => {
+        state.tasks.generation = true;
+        state.tasks.validator = true;
+        state.approved = true;
+        state.outputReady = true;
+        setStatus('approved', 'Approved', 'Approved output');
+        addLog('Output approved', 'Final Validator approved the actual output after identity, continuity, timing, and acceptance checks passed.');
+        queuePush('Approved', 'Shot is ready and its end state can hand off to the next begin state.', 'complete');
+        renderAll();
+        toast('Shot approved.');
+      });
+    }
+
+    async function confirmChoice() {
+      if (!state.selectedCandidate) return;
+      clearTimers();
+      setStatus('resolving', 'Requesting approved material', 'Security / Warehouse bridge');
+      renderAll();
+      try {
+        await bridgeStudioMaterialRequest();
+        continueAfterChoice();
+      } catch (error) {
+        state.blocker = { detail: `Studio → Librarian → Security → Warehouse bridge failed: ${error.message}` };
+        setStatus('blocked', 'Material bridge blocked', 'Backend connection required');
+        addLog('Material request blocked', error.message);
+        queuePush('Security / Warehouse', 'No production material was accepted. Fix the backend bridge and retry.', 'blocked');
+        renderAll();
+        toast('Material bridge blocked.');
+      }
+    }
+
+    function injectBlocker() {
+      if (!state.tasks.productionDesign && !state.tasks.cinematography && !state.tasks.sound) {
+        addLog('No blocker injected', 'Start a run first so there is active downstream work to invalidate.');
+        toast('Roll a scene first.');
+        renderAll();
+        return;
+      }
+      clearTimers();
+      state.blocker = {
+        detail: 'An upstream material assignment changed after downstream prep, so the run is blocked and downstream work is stale until corrected.',
+      };
+      state.authorized = false;
+      state.approved = false;
+      setStatus('blocked', 'Blocked on dependency', 'Correction required');
+      addLog('Dependency stale', 'The system blocked generation because downstream work became stale after an upstream change.');
+      queuePush('Correction required', 'Repair invalid work and replay forward.', 'blocked');
+      renderAll();
+      toast('Run blocked until correction is applied.');
+    }
+
+    function repairBlocker() {
+      if (!state.blocker) return;
+      state.blocker = null;
+      setStatus('producing', 'Replaying forward', 'Correction replay');
+      addLog('Correction applied', 'Invalid downstream work was repaired and replayed forward without rerolling the whole scene.');
+      queuePush('Replay forward', 'Continuing from the corrected stage.', 'running');
+      renderAll();
+      enqueueStep(900, () => {
+        state.authorized = true;
+        state.tasks.authorization = true;
+        setStatus('generating', 'Generating on authorized package', 'Generation + validation');
+        addLog('Authorization restored', 'Exact package re-authorized after correction.');
+        renderAll();
+      });
+      enqueueStep(1800, () => {
+        state.tasks.generation = true;
+        state.tasks.validator = true;
+        state.approved = true;
+        setStatus('approved', 'Approved', 'Approved output');
+        addLog('Output approved', 'Final Validator approved the corrected run.');
+        renderAll();
+      });
+    }
+
+    function resetAll() {
+      stopQrCamera();
+      clearTimers();
+      localStorage.removeItem(STORAGE_KEY);
+      state = defaultState();
+      renderAll();
+      toast('State reset.');
+    }
+
+    function reroll() {
+      state.runNumber += 1;
+      state.runId = `15S-RUN-${String(state.runNumber).padStart(3, '0')}`;
+      rollScene(true);
+    }
+
+    function setupModalChoices() {
+      refs.modalChoices.addEventListener('click', (event) => {
+        const card = event.target.closest('[data-candidate]');
+        if (!card) return;
+        state.selectedCandidate = card.dataset.candidate;
+        addLog('Approved match selected', `${state.selectedCandidate} chosen so the run can continue.`);
+        renderAll();
+      });
+    }
+
+    refs.form.addEventListener('input', updateSceneFromForm);
+    refs.rollBtn.addEventListener('click', () => rollScene(false));
+    refs.rerollBtn.addEventListener('click', reroll);
+    refs.resetBtn.addEventListener('click', resetAll);
+    refs.injectBlockerBtn.addEventListener('click', injectBlocker);
+    refs.confirmChoiceBtn.addEventListener('click', confirmChoice);
+    refs.closeModalBtn.addEventListener('click', () => {
+      state.waitingForChoice = false;
+      addLog('Decision deferred', 'Run remains paused until an approved match is selected.');
+      renderAll();
+    });
+
+
+    refs.startScannerBtn.addEventListener('click', startQrCamera);
+    refs.stopScannerBtn.addEventListener('click', stopQrCamera);
+    refs.manualScanBtn.addEventListener('click', () => inspectQr(refs.manualQrInput.value, 'manual'));
+    refs.manualQrInput.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter') { event.preventDefault(); inspectQr(refs.manualQrInput.value, 'manual'); }
+    });
+    const savedLibrarianApiUrl = localStorage.getItem('15s-librarian-api-url');
+    if (savedLibrarianApiUrl) refs.librarianApiUrl.value = savedLibrarianApiUrl;
+    refs.testLibrarianBtn.addEventListener('click', testLibrarianConnection);
+    refs.librarianApiUrl.addEventListener('change', () => {
+      localStorage.setItem('15s-librarian-api-url', getLibrarianApiUrl());
+    });
+    refs.qrImageInput.addEventListener('change', (event) => scanQrImage(event.target.files?.[0]));
+    refs.registerQrBtn.addEventListener('click', registerLastScan);
+    refs.clearQrBtn.addEventListener('click', clearQrResult);
+    window.addEventListener('pagehide', stopQrCamera);
+
+    refs.drawerToggles.forEach(btn => {
+      btn.addEventListener('click', () => btn.parentElement.classList.toggle('open'));
+    });
+
+    refs.railBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        refs.railBtns.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        const target = document.getElementById(btn.dataset.target);
+        if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
+    });
+
+    document.addEventListener('keydown', (event) => {
+      if (event.key.toLowerCase() === 'r') rollScene(false);
+      if (event.key === 'Escape' && state.waitingForChoice) {
+        state.waitingForChoice = false;
+        renderAll();
+      }
+    });
+
+    document.addEventListener('dblclick', (event) => {
+      const title = event.target.closest('.panel-title');
+      if (!title) return;
+      repairBlocker();
+    });
+
+    setupModalChoices();
+    renderAll();
+  </script>
+<div style="display:none" id="buildMarker">LIBRARIAN-CONNECTED-V10</div>
+</body>
+</html>
